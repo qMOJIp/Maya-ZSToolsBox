@@ -1,0 +1,58 @@
+optionVar -sv CKIRunFilePath "C:\Users\pengzici\Desktop";
+// 获取所有变换节点
+string $allTransforms[] = `ls -type "transform"`;
+
+// 筛选出含有关键帧的对象
+string $keyedObjects[] = {};
+for ($obj in $allTransforms) {
+	if (`keyframe -query -keyframeCount $obj` > 0) {
+		$keyedObjects[size($keyedObjects)] = $obj;
+	}
+}
+
+// 打印结果
+print("含有关键帧的对象:\n");
+for ($obj in $keyedObjects) {
+	print($obj + "\n");
+}
+
+
+
+string $unknownNodes[] = `ls -type "unknown"`;
+
+for($node in $unknownNodes) {
+	print( "Deleting " + $node + "\n" );
+	lockNode -lock 0 $node;
+	delete $node;
+}
+
+string $plugin;
+string $unknownPlugins[] = `unknownPlugin -query -list`;
+for ($plugin in $unknownPlugins)
+{
+	unknownPlugin -remove $plugin;
+}
+
+//Ma文件打开卡找不到插件路径的用以上mel代码清理一次保存就好了
+
+
+global proc highlightObjectsWithKeyAtFrame(int $frame) {
+	// 获取所有含关键帧的对象
+	string $keyedObjects[] = `keyframe -query -time $frame -name`;
+	
+	if (size($keyedObjects) == 0) {
+		print("第 " + $frame + " 帧没有关键帧\n");
+		return;
+	}
+
+	// 高亮显示这些对象
+	select -r $keyedObjects;
+	print("已选中第 " + $frame + " 帧含有关键帧的 " + size($keyedObjects) + " 个对象:\n");
+	print(string($keyedObjects) + "\n");
+}
+
+// 使用示例：查询第80帧
+highlightObjectsWithKeyAtFrame(80);
+
+
+

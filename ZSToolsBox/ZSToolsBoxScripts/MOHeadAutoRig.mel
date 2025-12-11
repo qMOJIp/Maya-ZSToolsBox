@@ -1,0 +1,85 @@
+global proc righelmetw()
+{
+	if (`window -exists "rh"`)
+	{
+		deleteUI -window "rh";
+	}
+	string $window = `window -title "MO头盔一键绑定V.3" -h 50 -w 200 -rtf 1 -s 0 -tlb 1 rh`;
+	string $column = `columnLayout -adjustableColumn true -parent $window`;
+
+	setParent $window;
+	rowLayout -nc 2 -columnWidth2 70 130;
+		text -label ("初始骨骼名：");
+		textField -w 130 -tx "Head_M" newjoint;
+
+	setParent $window;
+	rowLayout -nc 2 -columnWidth2 70 130;
+		text -label ("绑定骨骼名：");
+		textField -w 130 -tx "helmetUnrealRoot" rigjoint;
+	button -c "righelmet" -label "执行" -parent $column;
+
+	showWindow $window;
+}
+
+global proc righelmet()
+{
+	string $selection[] = `ls -sl`;
+	if (size($selection) > 0)
+	{
+		//将对象的坐标轴归于原点
+		ResetTransformations;
+		for ($i = 0; $i < size($selection); $i++)
+		{
+			channelBoxCommand -unlock;
+			//解锁选定对象位移属性
+			CBunlockAttr ($selection[$i] + ".tx");
+			CBunlockAttr ($selection[$i] + ".ty");
+			CBunlockAttr ($selection[$i] + ".tz");
+			//解锁选定对象旋转属性
+			CBunlockAttr ($selection[$i] + ".rx");
+			CBunlockAttr ($selection[$i] + ".ry");
+			CBunlockAttr ($selection[$i] + ".rz");
+			//解锁选定对象缩放属性
+			CBunlockAttr ($selection[$i] + ".sx");
+			CBunlockAttr ($selection[$i] + ".sy");
+			CBunlockAttr ($selection[$i] + ".sz");
+		}
+		//冻结坐标系
+		FreezeTransformations;
+		//创建骨骼
+		select -clear;
+		string $newbone = `textField -q -tx rigjoint`;
+		joint -p 0 0 0 -n $newbone;
+		//parent -w;
+		//设置关节旋转值
+		setAttr ($newbone + ".jointOrient") -90 0 0;
+		//将新骨骼匹配到原骨骼
+		string $jointname = `textField -q -tx newjoint`;
+		select -r $newbone;
+		select -add $jointname;
+		MatchTransform;
+		//将匹配的旋转值清零
+		setAttr ($newbone + ".r") 0 0 0;
+		//删除其余骨骼
+		select `ls -type joint`;
+		select -d $newbone;
+		delete;
+		//进行绑定
+		select $selection;
+		select -add $newbone;
+		SmoothBindSkin;
+		//移动至原点
+		setAttr ($newbone + ".t") 0 0 0;
+		//重新绑定以清除蒙皮姿势
+		select $selection;
+		select -add $newbone;
+			//删除历史
+		delete -ch;
+		SmoothBindSkin;
+	}else
+	{
+		warning ("请选择绑定对象！！！");
+	}
+}
+
+righelmetw;

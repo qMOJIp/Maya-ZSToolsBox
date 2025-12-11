@@ -1,0 +1,106 @@
+global proc copyskin(){
+	
+if (`window -exists cmWindow`){
+		deleteUI cmWindow; }
+window -title "拷贝权重" -tlb 1 -s 0 cmWindow;
+columnLayout -h 150 -w 180 -columnAttach both 5 -adjustableColumn true;
+	separator -h 5 -style "none";
+	columnLayout -adjustableColumn true; 
+	text "一对一复制权重";
+	separator -h 5 -style "none";
+	button -bgc 0.5 0.9 0.5  -label "执行" -ann "选择已有权重物体加选目标物体执行" -c "simpleCopySkin";
+	separator -h 5 -style "none";
+	text "一对多复制权重";
+	separator -h 5 -style "none";
+	rowColumnLayout -nc 2 -cw 1 120 -cw 2 50;
+	   textField -ed 0 objTransField;
+	   button -label "加载" -ann "加载源物体" -bgc 0.2 0.5 0.4 -c "lscc";
+	   separator -h 5 -style "none";
+	setParent ..;
+	button -bgc 0.5 0.9 0.5 -label "执行" -ann "选择多个目标物体执行" -c "num";
+	separator -h 5 -style "none";
+	checkBox -w 150 -v off -label "基于蒙皮名称对蒙皮名称的复制" NameStyleCopy;
+showWindow;
+}
+
+global proc simpleCopySkin ()
+{
+	string $CB[]=`ls -sl`;
+	string $history[] = `listHistory $CB[0]`;
+	string $history2[] = `listHistory $CB[1]`;
+	string $skinClsu[] = `ls -typ skinCluster $history`;
+	string $tmpSkinClsu[] = `ls -typ skinCluster $history`;
+	if(`size $tmpSkinClsu`>=2)
+	{
+		for($clus in $tmpSkinClsu){
+			if(`objExists  ($clus+"Set")`){
+				string $skinObj[]= `listConnections -type "mesh" ($clus+"Set")`;
+				//print $skinObj;
+				if (`size $skinObj`){
+					if ($skinObj[0]==$CB[0]){
+						$skinClsu={};
+						$skinClsu[0]=$clus;
+					}
+				}
+			 }
+		}
+	}
+	string $skinClsu2[] = `ls -typ skinCluster $history2`;
+	
+	string $allInfus[]= `listConnections ($skinClsu[0] +".matrix")`;
+	string $joints[] = `ls -type "joint" $allInfus`;
+	string $geos[]=  stringArrayRemove($joints, $allInfus);
+	if ((`size $skinClsu2` == 0)||($skinClsu2[0]==$skinClsu[0]))
+	{
+		string $jointsString = "";
+		for ($jon in $joints)
+		{
+			$jointsString += $jon + " ";
+			//print  $joints
+		}
+		string $trans = ("skinCluster -ibp -tsb " +  $jointsString + " " +  $CB[1]);
+		string $skinCluster[]=`eval $trans`;
+		
+		if(`size $geos`){
+			setAttr ($skinCluster[0]+".uc") 1;
+			string $inf="";
+			for ($geo in $geos)
+			{
+				$inf+= "-ai " + $geo;
+			}
+			string $cmd=("skinCluster -e -ug -wt 0 " +  $inf + " " +  $skinCluster[0]);
+			eval $cmd;
+		}
+	}
+	select -r $CB[0];
+	select -tgl $CB[1];
+	
+	string $namestylecopy = `checkBox -q -v  NameStyleCopy`;
+	if ($namestylecopy == 1)
+	{
+		copySkinWeights -noMirror -surfaceAssociation closestPoint -influenceAssociation name;
+	}else
+	{
+		copySkinWeights -noMirror -surfaceAssociation closestPoint -influenceAssociation oneToOne;
+	}
+
+}
+
+global proc lscc()
+{
+	string $curvobj[] = `ls -sl`;
+	textField -e -tx $curvobj objTransField;
+}
+	
+global proc num()
+{
+	string $jntName = `textField -q -tx objTransField`;    
+	string $ac[]=`ls -sl`;
+	for($lc in $ac)
+	{ 
+		select $jntName;
+		select -tgl $lc;
+		simpleCopySkin; 
+	}
+}
+copyskin();

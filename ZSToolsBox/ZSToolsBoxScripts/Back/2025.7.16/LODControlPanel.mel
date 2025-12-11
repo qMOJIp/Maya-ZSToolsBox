@@ -1,0 +1,167 @@
+//gridLayout
+
+// 定义一个过程来创建窗口和滑条
+global proc createLODControlWindow()
+{
+	// 如果窗口已经存在，则删除它
+	if (`window -exists "LODControlWindow"`) {
+		deleteUI "LODControlWindow";
+	}
+	window -title "LOD控制面板V.1" -width 200 -height 55 -s 0 -tlb 1 "LODControlWindow";
+
+	// 创建一个列布局来组织控件
+	columnLayout -h 60 -w 200 -columnAttach both 5 -adjustableColumn true LodcolumnLayout;
+	separator -h 5 -style "none";
+	rowLayout -adj 1 -nc 3 -columnWidth3 120 20 60 intSliderrowLayout; 
+		intSlider -w 100 -h 20 -minValue 0 -value 0 -step 1 -cc "updateLODVisibility" -p intSliderrowLayout LODSlider;
+		textField -editable false -w 20 -h 20 -tx "0" -p intSliderrowLayout ShowLodLevel;
+		textField -editable false -w 60 -h 20 -tx "/(0-0)级" -p intSliderrowLayout AllLodLevel;
+	setParent ..;
+	rowLayout -adj 4 -nc 5 -columnWidth5 50 20 40 40 20 buttonrowLayout; 
+		button -c "AddLodGroup" -w 50 -h 20 -ann "追加显示LOD组，再次点击隐藏" -label "显/隐" -p buttonrowLayout;
+		textField -w 30 -h 20 -tx "0" -p buttonrowLayout AddShowLodLevel;
+		button -c "GetLodGroup" -w 40 -h 20 -ann "选择进行调整的LOD组" -label "获取" -p buttonrowLayout;
+		button -c "BackLodGroup" -w 40 -h 20 -ann "还原LOD组默认设置" -label "还原" -p buttonrowLayout;
+		button -c "LodShow" -w 20 -h 20 -ann "显示参与LOD组" -label "◆" -p buttonrowLayout LodShowbutton;
+	setParent ..;
+	textScrollList -hlc 0.35 0.35 0.35 -nr 10 -h 2 -dkc "LodDelete" -allowMultiSelection 1 -p LodcolumnLayout LODGroupScrollList;
+	
+	
+	showWindow "LODControlWindow";
+}
+
+//还原LOD组默认设置
+global proc BackLodGroup ()
+{
+	string $allElements[] = `textScrollList -q -allItems LODGroupScrollList`;
+	int $Num = `intSlider -q -maxValue LODSlider` +1;
+	for ( $a = 0 ; $a < size($allElements); $a++)
+	{
+		for ( $i = 0 ; $i < $Num; $i++)
+		{
+			setAttr ($allElements[$a] + ".displayLevel[" + $i + "]") 0;
+		}
+	}
+}
+
+//追加显示lod组
+global proc AddLodGroup ()
+{
+	string $allElements[] = `textScrollList -q -allItems LODGroupScrollList`;
+	int $addnum = int (`textField -q -tx AddShowLodLevel`);
+	if (`getAttr ($allElements[0] + ".displayLevel[" + $addnum + "]")` != 1){
+		for ( $a = 0 ; $a < size($allElements); $a++)
+		{
+			setAttr ($allElements[$a] + ".displayLevel[" + $addnum + "]") 1;
+		}
+	}else{
+		for ( $a = 0 ; $a < size($allElements); $a++)
+		{
+			setAttr ($allElements[$a] + ".displayLevel[" + $addnum + "]") 2;
+		}
+	}
+}
+
+//显示参与lod组
+global proc LodShow ()
+{
+	int $PathHeightGet = `textScrollList -q -h LODGroupScrollList`;
+	if ($PathHeightGet == 2)
+	{
+		button -e -label "▼" LodShowbutton;
+		textScrollList -e -h 100 -m 1 LODGroupScrollList;
+		window -e -h 155 LODControlWindow;
+	}else{
+		button -e -label "◆" LodShowbutton;
+		textScrollList -e -h 2 -m 1 LODGroupScrollList;
+		window -e -h 60 LODControlWindow;
+	}
+}
+
+// 定义一个过程来获取 LOD 组中的 LOD 层数量
+global proc int getLODLevels(string $lodGroupName[])
+{
+	int $LodNum;
+	// 检查提供的 LOD 组名是否存在
+	for ($i = 0; $i < size($lodGroupName); $i++) {
+		if (!objExists($lodGroupName[$i])) {
+			error("LOD组 \"" + $lodGroupName[$i] + "\" 不存在！！！");
+			return 1; // 返回 -1 表示错误
+		}else{
+			continue;
+		}
+	}
+	
+	if (size($lodGroupName) <= 1)
+	{
+		string $children[] = `listRelatives -fullPath -children $lodGroupName[0]`;
+		$LodNum = size($children);
+
+	}
+	else
+	{
+		for ($i = 1; $i < size($lodGroupName); $i++) {
+			// 获取 LOD 组的子节点
+			string $childrenold[] = `listRelatives -fullPath -children $lodGroupName[$i-1]`;
+			string $childrennew[] = `listRelatives -fullPath -children $lodGroupName[$i]`;
+			if (size($childrenold) < size($childrennew)){
+				$LodNum = size($childrennew);
+			}else{
+				$LodNum = size($childrenold);
+			}
+		}
+	}
+	// 返回子节点的数量，即 LOD 层的数量
+	//print ($LodNum);
+	return $LodNum -1;
+}
+
+//删除选择
+global proc LodDelete ()
+{
+	int $SelectPrwIndex[] = `textScrollList -q -selectIndexedItem LODGroupScrollList`;
+	textScrollList -e -removeIndexedItem $SelectPrwIndex[0] LODGroupScrollList;
+}
+
+global proc GetLodGroup()
+{
+	string $selections[] = `ls -sl`;
+	int $numLODLevels = getLODLevels($selections);
+	textField -e -tx ("/(0-" + $numLODLevels + ")级") AllLodLevel;
+	intSlider -e -maxValue $numLODLevels LODSlider;
+	textScrollList -e -removeAll LODGroupScrollList;
+	for ( $i = 0 ; $i < size($selections); $i++)
+	{
+		textScrollList -e -append $selections[$i] LODGroupScrollList;
+	}
+}
+
+// 定义一个过程来更新 LOD 层的可见性
+global proc updateLODVisibility()
+{
+	// LOD 组名
+	int $value = `intSlider -q -value LODSlider`;
+	int $Num = `intSlider -q -maxValue LODSlider`;
+	string $allElements[] = `textScrollList -q -allItems LODGroupScrollList`;
+	textField -e -tx $value ShowLodLevel;
+	for ( $a = 0 ; $a < size($allElements); $a++)
+	{
+		// 获取 LOD 组的子节点（LOD 层）
+		//string $lodChildren[] = `listRelatives -fullPath -children $allElements[$i]`;
+		
+		// 遍历所有 LOD 层，并根据滑条值设置可见性
+		for ($i = 0; $i <= $Num; $i++) {
+			//string $lodChild = $lodChildren[$i];
+			
+			// 如果当前 LOD 层的索引与滑条值匹配，则显示它，否则隐藏它
+			if ($i == $value) {
+				setAttr ($allElements[$a] + ".displayLevel[" + $i + "]") 1;
+			} else {
+				setAttr ($allElements[$a] + ".displayLevel[" + $i + "]") 2;
+			}
+		}
+	}
+}
+
+// 创建窗口和滑条
+createLODControlWindow();

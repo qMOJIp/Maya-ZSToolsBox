@@ -1,0 +1,14 @@
+string $unknownNodes[] = `ls -type "unknown"`;
+
+for($node in $unknownNodes) {
+	print( "Deleting " + $node + "\n" );
+	lockNode -lock 0 $node;
+	delete $node;
+}
+
+string $plugin;
+string $unknownPlugins[] = `unknownPlugin -query -list`;
+for ($plugin in $unknownPlugins)
+{
+	unknownPlugin -remove $plugin;
+}

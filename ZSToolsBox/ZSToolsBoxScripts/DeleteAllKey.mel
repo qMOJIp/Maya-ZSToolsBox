@@ -1,0 +1,5 @@
+//delete `ls -type "animCurveTA" "animCurveTL" "animCurveTU" "animCurveTT"`;
+delete `ls -type "animCurveTA" `;
+delete `ls -type "animCurveTL"`;
+delete `ls -type "animCurveTU"`;
+//delete `ls -type "animCurveTT"`;

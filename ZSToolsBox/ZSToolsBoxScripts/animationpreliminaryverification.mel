@@ -1,0 +1,50 @@
+global proc AnimationPreliminaryVerification()  
+{
+	if (`window -exists "APVWindow"`)
+	{  
+		deleteUI -window "APVWindow";
+	}  
+window -title "绑定动画初略验证V.1" -h 80 -w 200 -rtf 1 -s 0 -tlb 1 APVWindow;
+columnLayout -h 50 -w 200 -columnAttach both 5 -adjustableColumn true APVcolumnLayout;
+	separator -h 5 -style "none";
+	text -label "输入验证动画路径后点击“验证”";
+	separator -h 5 -style "none";
+	textField -tx "" AnimPath;
+	separator -h 5 -style "none";
+	button -c "VerificationCommend" -label "验证" -p APVcolumnLayout;
+	separator -h 5 -style "none";
+showWindow;
+}
+
+global proc VerificationCommend () 
+{
+	string $AnimPathText = `textField -q -tx AnimPath`;
+	$AnimPathText = fromNativePath ($AnimPathText);
+	string $Constraintsource[] = `ls -type joint`;
+	string $Constrainttarget[];
+	for ($i=0;$i<size($Constraintsource);$i++)
+	{
+	    if(objExists($Constraintsource[$i]))
+	    {
+	    $Constrainttarget[$i] = $Constraintsource[$i] + "_JNT";
+	    rename $Constraintsource[$i] $Constrainttarget[$i];
+	    }else
+	    {
+	        continue;
+	    }
+	}
+	file -import $AnimPathText;
+	//file -import "C:/Users/pengzici/Desktop/A_Game_Soldier_ChangBing_Neu_Stand_Def_Fight_Long_B_01.fbx";
+	for ($i=0;$i<size($Constraintsource);$i++)
+	{
+	    if(objExists($Constraintsource[$i]))
+	    {
+	        orientConstraint -w 1.0 $Constraintsource[$i] $Constrainttarget[$i];
+	    }else
+	    {
+	        continue;
+	    }
+	}
+}
+
+AnimationPreliminaryVerification();

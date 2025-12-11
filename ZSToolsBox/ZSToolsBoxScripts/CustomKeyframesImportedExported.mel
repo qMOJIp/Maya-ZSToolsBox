@@ -1,0 +1,106 @@
+global proc CustomKeyframesImportedExported()
+{
+	// 如果窗口已经存在，则删除它
+	if (`window -exists "CKIEWindow"`) {
+		deleteUI "CKIEWindow";
+	}
+	window -title "自定义关键帧导入导出" -bgc 0.235 0.251 0.310 -w 320 -s 0 -tlb 0 CKIEWindow;// -h 200
+	columnLayout -adjustableColumn true -p CKIEWindow CKIEcolumnLayoutHeader;
+		rowLayout -bgc 0.275 0.627 0.823 -adj 2 -nc 2 -columnWidth2 60 200 -p CKIEcolumnLayoutHeader CKIErowLayout;
+			text -w 60 -label "导出帧名：";
+			textField -w 200 -ec "CKIEImport" -tx "" DNAImportCeresPath;
+	columnLayout -bgc 0.235 0.251 0.310 -columnAttach both 5 -adjustableColumn true -p CKIEWindow CKIEcolumnLayout;
+	separator -h 5 -style "none";
+	frameLayout -bgc 0.335 0.351 0.410 -w 300 -bv 1 -labelIndent 96 -cl 1 -cll 1 -label "导入当前帧" -p CKIEcolumnLayout CKIEExportKeyframesframeLayout;
+		rowLayout -adj 2 -nc 3 -columnWidth3 60 200 40 -p CKIEExportKeyframesframeLayout;
+			text -w 60 -label "导出帧名：";
+			textField -w 200 -tx "" DNAExportCeresPath;
+			button -bgc 0.864 0.864 0.864 -w 40 -h 20 -c "CKIEExport" -label "导出";
+		button -bgc 0.864 0.864 0.864 -h 20 -c "CKIESetExportName" -label "使用文件名加当前帧数作为导出帧名" -p CKIEExportKeyframesframeLayout;
+	separator -h 5 -style "none" -p CKIEcolumnLayout;
+	frameLayout -bgc 0.335 0.351 0.410 -w 300 -bv 1 -labelIndent 96 -cl 1 -cll 1 -label "导入储存帧" -p CKIEcolumnLayout CKIEImportKeyframesframeLayout;
+		text -w 300 -bgc 0.275 0.627 0.823 -label "导入参数" -p CKIEImportKeyframesframeLayout;
+		rowLayout -nc 4 -columnWidth4 75 75 75 75 -p CKIEImportKeyframesframeLayout;
+			checkBox -w 75 -v 1 -label "导入位移值" CKIECheckBoxTranslate;
+			checkBox -w 75 -v 1 -label "导入旋转值" CKIECheckBoxRotate;
+			checkBox -w 75 -v 1 -label "导入缩放值" CKIECheckBoxScale;
+			checkBox -w 75 -v 1 -label "导入其他值" CKIECheckBoxOther;
+		text -w 300 -bgc 0.275 0.627 0.823 -label "已有帧数据" -p CKIEImportKeyframesframeLayout;
+		rowLayout -nc 3 -columnWidth3 60 220 20 -p CKIEImportKeyframesframeLayout;
+			text -w 60 -label "显示大小：";
+			intSlider -w 220 -h 20 -minValue 0 -value 1 -step 1 -cc "CKIEVisibility" CKIESlider;
+			symbolButton -w 20 -h 20 -image "ResetMode_200.png" -c "CKIEFlusheImage" CKIEFlusheImage;//刷新
+
+	//显示更新日期
+	separator -h 5 -style "none" -p CKIEcolumnLayout;
+	separator -h 5 -style "doubleDash" -p CKIEcolumnLayout;
+	text -h 20 -fn tinyBoldLabelFont -hlc 1 1 1 -label ("2025年7月17日 v.1") -p CKIEcolumnLayout;
+	showWindow "CKIEWindow";
+
+	//检测是否设置过储存路径
+	CKIECheckSetPrePath ();
+}
+
+
+//检测是否设置过储存路径
+global proc CKIECheckSetPrePath ()
+{
+	//读取储存路径
+	string $CKIESetPrePath = `internalVar -userScriptDir` + "ZSToolsBox/PublicFiles/CKIESetPrePath.set";
+	$CKIESetPrePathFileId = `fopen $CKIESetPrePath "r"`;
+	string $CKIESetPrePathContent = `fgetline $CKIESetPrePathFileId`;
+	$CKIESetPrePathContent = strip($CKIESetPrePathContent);
+	fclose $CKIESetPrePathFileId;
+	if ($CKIESetPrePathContent == "")
+	{
+		if (`window -exists "CKIESetPathWarnWindow"`)
+		{
+			deleteUI "CKIESetPathWarnWindow";
+		}
+		window -title "警告！！！" -bgc 0.235 0.251 0.310 -s 0 -tlb 1 CKIESetPathWarnWindow;
+		columnLayout -adjustableColumn true -columnAttach both 5 -p CKIESetPathWarnWindow CKIESetPathWarnColumnLayout;
+			separator -h 10 -style "none";
+			text -label "初次使用本插件或设置文件";
+			separator -h 2 -style "none";
+			text -label "丢失，请重新设置存储路径！！！";
+			separator -h 5 -style "none";
+			rowLayout -bgc 0.275 0.627 0.823 -adj 2 -nc 3 -columnWidth3 60 120 30 -p CKIESetPathWarnColumnLayout;
+				text -w 60 -label "存储路径：";
+				textField -ec "CKIESaveSetPrePath ()" -tx "E:/CKIE_Presets" -ann "E:/CKIE_Presets 为推荐路径，回车确认。" CKIESetPathTextField;
+				button -bgc 1 1 1 -w 30 -h 20 -c "CKIESaveSetPrePath ()" -label "确认";
+			setParent ..;
+			separator -h 5 -style "none";
+		showWindow "CKIESetPathWarnWindow";
+	}
+}
+	//确认储存路径
+global proc CKIESaveSetPrePath ()
+{
+	string $CKIESetPrePath = `internalVar -userScriptDir` + "ZSToolsBox/PublicFiles/CKIESetPrePath.set";
+	cleanFile ( $CKIESetPrePath );
+	writeFile ( $CKIESetPrePath , `textField -q -tx CKIESetPathTextField`);
+	string $CKIESetPreFile = toNativePath(`textField -q -tx CKIESetPathTextField`);
+	if (!`file -exists -q $CKIESetPreFile`)
+	{
+		system("mkdir \"" + $CKIESetPreFile + "\"");
+		print("存储路径不存在但已创建。\n");
+	}
+	deleteUI "CKIESetPathWarnWindow";
+}
+
+//文本文件写入
+global proc writeFile ( string $filename, string $addcontents )
+{
+	$fileId=`fopen $filename "a"`;
+	fprint $fileId ( $addcontents );
+	fclose $fileId;
+}
+
+//文本文件清空
+global proc cleanFile ( string $cfilename )
+{
+	$cfileId=`fopen $cfilename "w"`;
+	fprint $cfileId "";
+	fclose $cfileId;
+}
+CustomKeyframesImportedExported();

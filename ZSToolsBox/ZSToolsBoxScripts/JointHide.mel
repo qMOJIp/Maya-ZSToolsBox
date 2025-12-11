@@ -1,0 +1,6 @@
+string $currentPanel = `getPanel -wl "Persp View"`;
+if (`modelEditor -q -joints $currentPanel`){
+	modelEditor -e -joints 0 $currentPanel;
+}else{
+	modelEditor -e -joints 1 $currentPanel;
+}

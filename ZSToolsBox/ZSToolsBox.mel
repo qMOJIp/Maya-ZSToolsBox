@@ -1,0 +1,17 @@
+global proc ZSToolsMainWindowMenu ()
+{
+	global string $gMainWindow;
+	if (`menu -q -ex ZSToolsMainWindowMenu`)
+	{
+		deleteUI ZSToolsMainWindowMenu;
+	}
+	string $scriptsPath = `internalVar -userScriptDir`;
+	string $ZSToolsMenuItemsPath = $scriptsPath + "ZSToolsBox/ZSToolsBoxMenu.mel";
+	menu -label "ZSTools" -to 1 -hm 1 -p $gMainWindow ZSToolsMainWindowMenu;
+	eval("source \"" + $ZSToolsMenuItemsPath + "\"");
+	eval("source \"" + $scriptsPath + "ZSToolsBox/ZSToolsBoxScripts/quickopenprojectfileopen.mel" + "\"");
+	eval("source \"" + $scriptsPath + "ZSToolsBox/ZSToolsBoxScripts/CeresProjectLocate.mel" + "\"");
+	eval("source \"" + $scriptsPath + "ZSToolsBox/ZSToolsBoxScripts/RigUseToEngineUseExport.mel" + "\"");
+	eval("source \"" + $scriptsPath + "ZSToolsBox/PublicFiles/Setting.mel" + "\"");
+}
+ZSToolsMainWindowMenu ();

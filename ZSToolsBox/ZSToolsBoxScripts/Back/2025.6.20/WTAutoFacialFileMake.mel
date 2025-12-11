@@ -1,0 +1,875 @@
+global proc WTAutoFacialFileMake()  
+{  
+	if (`window -exists "WTAutoFacialFileMakewindow"`)
+	{  
+		deleteUI -window "WTAutoFacialFileMakewindow";
+	}  
+window -title "自动WT头模工作流程V.4" -h 500 -w 405 -rtf 1 -s 0 -tlb 0 WTAutoFacialFileMakewindow;
+//公用开头
+	string $scriptsPath = `internalVar -userScriptDir`;
+	string $filePath = $scriptsPath + "ZSToolsBox/PublicFiles/Projets.txt";
+	$fileId=`fopen $filePath "r"`;
+	string $TextLine = `fgetline $fileId`;
+	fclose $fileId;
+	string $ArrayTextLine[] = stringToStringArray( $TextLine, ";" );
+	for ($i=0; $i<size($ArrayTextLine); $i++)
+	{
+		if (`gmatch $ArrayTextLine[$i] ("WT=*")` == 1){
+			string $ProjetContent[] = stringToStringArray( $ArrayTextLine[$i], "=" );
+			optionVar -sv WTFileName $ProjetContent[1];
+		}
+	}
+columnLayout -h 500 -w 390 -columnAttach both 5 -adjustableColumn true WTAFFMcolumnLayout;
+	separator -h 5 -style "none";
+	text -h 20 -bgc 0.2 0.4 0.4 -label ("使用前确保对应角色的 Facial PV ma 文件已获取且按照规范制作");
+	separator -h 5 -style "none";
+scrollLayout -p WTAFFMcolumnLayout -h 470 -w 390 WTAFFMscrollLayout;
+	rowLayout -adj 1 -p WTAFFMscrollLayout -nc 2 -columnWidth2 186 186; 
+	text -w 186 -label ("角色名字");
+	text -w 186 -label ("代号");
+	rowLayout -adj 1 -p WTAFFMscrollLayout -nc 2 -columnWidth2 186 186; 
+	textField -w 186 -tx "" charactername;
+	textField -w 186 -tx "" characternum;
+text -w 375 -p WTAFFMscrollLayout -label ("Ceres对应角色的Rig路径");
+textField -w 375 -p WTAFFMscrollLayout -tx "" CeresRigtextField;
+
+//制作 PV 的 Facial 文件（fbx）UI布局
+frameLayout -w 375 -cl 1 -cll 1 -ann "含LOD_PV层级模型和855根骨骼" -label "制作 PV 的 Facial 文件（fbx）" -p WTAFFMscrollLayout WTAFFMframeLayout1;
+	separator -parent WTAFFMframeLayout1 -h 1 -style "none";
+	text -h 20 -w 375 -bgc 0.4 0.2 0.2 -label ("进行文件迭代制作时请确认要制作文件已检出");
+	button -c "PVFacialCeres" -ann "通过项目文件快速打开插件在 Ceres 上定位到该文件以便快速检出" -label "Ceres 定位制作文件" -parent WTAFFMframeLayout1;
+	button -c "PVFacialMake" -ann "在确认检出文件后根据 SK_Player_角色名字_Origin_Facial_PV_01.ma 文件制作"  -label "制作 SK_Player_角色名字_Origin_Facial_PV_01.fbx 文件" -parent WTAFFMframeLayout1;
+	button -c "PVFacialCheck" -ann "新建场景导入 SK_Player_角色名字_Origin_Facial_PV_01.fbx 文件" -label "新建场景导入制作文件进行检查" -parent WTAFFMframeLayout1;
+	separator -parent WTAFFMframeLayout1 -h 1 -style "shelf";
+
+//制作 Game 的 Facial 文件（fbx）UI布局
+frameLayout -w 375 -cl 1 -cll 1 -ann "除LOD_PV层级模型和98根骨骼" -label "制作 Game 的 Facial 文件（fbx）" -p WTAFFMscrollLayout WTAFFMframeLayout2;
+	separator -parent WTAFFMframeLayout2 -h 1 -style "none";
+	text -h 20 -w 375 -bgc 0.4 0.2 0.2 -label ("进行文件迭代制作时请确认要制作文件已检出");
+	button -c "GameFacialCeres" -ann "通过项目文件快速打开插件在 Ceres 上定位到该文件以便快速检出" -label " Ceres 定位制作文件" -parent WTAFFMframeLayout2;
+	button -c "GameFacialMake" -ann "在确认检出文件后根据 SK_Player_角色名字_Origin_Facial_PV_01.ma 文件制作" -label "制作 SK_Player_角色名字_Origin_Facial_Lod_01.fbx 文件" -parent WTAFFMframeLayout2;
+	button -c "GameFacialCheck" -ann "新建场景导入 SK_Player_角色名字_Origin_Facial_Lod_01.fbx 文件" -label "新建场景导入制作文件进行检查" -parent WTAFFMframeLayout2;
+	separator -parent WTAFFMframeLayout2 -h 1 -style "shelf";
+
+//制作An的Facial和BodyWithFacial文件（ma）UI布局
+frameLayout -w 375 -ec "HideConstrainframeLayout" -cl 1 -cll 1 -ann "整合动画编辑文件一键生成插件V.3" -label "制作An的Facial和BodyWithFacial文件（ma）" -p WTAFFMscrollLayout WTAFFMframeLayout3;
+	//准备文件提示
+	separator -parent WTAFFMframeLayout3 -h 1 -style "none";
+	text -h 20 -w 375 -bgc 0.4 0.2 0.2 -label ("请从Ceres上获取以下文件最新版本");
+	rowLayout -adj 1 -p WTAFFMframeLayout3 -nc 2 -columnWidth2 335 30; 
+		text -h 20 -w 330 -bgc 0.2 0.1 0.1 -label ("SK_Player_角色名字_Origin_Facial_PV_01.ma（PV脸模MA文件）");
+		button -w 30 -h 19 -bgc 0.4 0.2 0.2 -ann "在Ceres上定位" -label "Ceres" -c "CeresFacialPVma";
+	rowLayout -adj 1 -p WTAFFMframeLayout3 -nc 2 -columnWidth2 335 30; 
+		text -h 20 -w 330 -bgc 0.2 0.1 0.1 -label ("SK_Player_角色名字_Origin_Facial_An_01.dna（脸模DNA文件）");
+		button -w 30 -h 19 -bgc 0.4 0.2 0.2 -ann "在Ceres上定位" -label "Ceres" -c "CeresFacialAndna";
+	rowLayout -adj 1 -p WTAFFMframeLayout3 -nc 2 -columnWidth2 335 30; 
+		text -h 20 -w 330 -bgc 0.2 0.1 0.1 -label ("SK_Player_角色名字_Origin_An_01.fbx（AN身体FBX文件）");
+		button -w 30 -h 19 -bgc 0.4 0.2 0.2 -ann "在Ceres上定位" -label "Ceres" -c "CeresAnBodyfbx";
+	rowLayout -adj 1 -p WTAFFMframeLayout3 -nc 2 -columnWidth2 335 30; 
+		text -h 20 -w 330 -bgc 0.2 0.1 0.1 -label ("SK_Player_角色名字_Origin_An_01.ma（AN身体MA文件）");
+		button -w 30 -h 19 -bgc 0.4 0.2 0.2 -ann "在Ceres上定位" -label "Ceres" -c "CeresAnBodyma";
+	text -p WTAFFMframeLayout3 -h 20 -w 375 -bgc 0.1 0.1 0.2 -label ("制作完文件后打开制作路径复制制作文件到对应路径上传");
+	//运行按钮
+	button -ann "将文件拷贝到文件制作路径" -c "CopyFileToPre" -label "拷贝文件至制作文件夹" -parent WTAFFMframeLayout3;
+	rowLayout -adj 1 -p WTAFFMframeLayout3 -nc 3 -columnWidth3 50 50 50;
+		button -c "MakeCheckBoxFile" -ann "开始制作勾选需制作的文件" -label "制作勾选文件";
+		checkBox -v 1 -label "Facial" -cc "TogetherBodyWithFacial" -ann "制作 Facial 文件" FacialcheckBox;
+		checkBox -v 0 -label "BodyWithFacial" -cc "TogetherFacial" -ann "制作 BodyWithFacial 文件" BodyWithFacialcheckBox;
+	rowLayout -adj 1 -p WTAFFMframeLayout3 -nc 2 -columnWidth2 50 50;
+	button -ann "若出现约束失败修复后点击此按钮约束即可" -c "OnlyRunConstrain" -label "仅执行后续约束";
+	button -w 25 -ann "展开约束组" -c "ShowConstrainframeLayout" -label "◆" ShowConstrainframeLayoutbutton;
+	frameLayout -vis 0 -ann "展开约束组" -label "展开约束组" -p WTAFFMframeLayout3 OnlyRunConstrainframeLayout;
+	//约束组一UI布局
+	setParent OnlyRunConstrainframeLayout;
+		text " ―――――――――――――    约束组一    ――――――――――――― ";
+		scrollLayout -cr 30 -h 115 -w 350 scrollLayout1;
+		for ($i = 0; $i < 70; $i++)
+			{  
+				string $rowLayout = `rowLayout -adj 2 -nc 4 -columnWidth4 55 115 55 110 -parent scrollLayout1`;
+			
+				text -label ("约束对象：") -parent $rowLayout;
+				textField -w 110 -parent $rowLayout ("sourceConstrain1" + $i);
+				text -label ("目标对象：") -parent $rowLayout;
+				textField -w 110 -parent $rowLayout ("targetConstrain1" + $i);
+			}
+		//约束组一初始数据输入
+		string $jeuseanfbxbone[] = {"Wrist_R","Wrist_L","Ankle_R","Ankle_L","Root_M","Spine1_M","Spine2_M","Chest_M","Neck_M","Neck1_M","Head_M","Hip_R","Knee_R","Ankle_R","Toes_R","Scapula_R","Shoulder_R","Elbow_R","Wrist_R","Hip_L","Knee_L","Ankle_L","Toes_L","Scapula_L","Shoulder_L","Elbow_L","Wrist_L","MiddleFinger1_R","MiddleFinger2_R","MiddleFinger3_R","ThumbFinger1_R","ThumbFinger2_R","ThumbFinger3_R","IndexFinger1_R","IndexFinger2_R","IndexFinger3_R","RingFinger1_R","RingFinger2_R","RingFinger3_R","PinkyFinger1_R","PinkyFinger2_R","PinkyFinger3_R","MiddleFinger1_L","MiddleFinger2_L","MiddleFinger3_L","ThumbFinger1_L","ThumbFinger2_L","ThumbFinger3_L","IndexFinger1_L","IndexFinger2_L","IndexFinger3_L","RingFinger1_L","RingFinger2_L","RingFinger3_L","PinkyFinger1_L","PinkyFinger2_L","PinkyFinger3_L"};
+		string $jeuseanmactrl[] = {"IKArm_R","IKArm_L","IKLeg_R","IKLeg_L","RootX_M","FKSpine1_M","FKSpine2_M","FKChest_M","FKNeck_M","FKNeck1_M","FKHead_M","FKHip_R","FKKnee_R","FKAnkle_R","FKToes_R","FKScapula_R","FKShoulder_R","FKElbow_R","FKWrist_R","FKHip_L","FKKnee_L","FKAnkle_L","FKToes_L","FKScapula_L","FKShoulder_L","FKElbow_L","FKWrist_L","FKMiddleFinger1_R","FKMiddleFinger2_R","FKMiddleFinger3_R","FKThumbFinger1_R","FKThumbFinger2_R","FKThumbFinger3_R","FKIndexFinger1_R","FKIndexFinger2_R","FKIndexFinger3_R","FKRingFinger1_R","FKRingFinger2_R","FKRingFinger3_R","FKPinkyFinger1_R","FKPinkyFinger2_R","FKPinkyFinger3_R","FKMiddleFinger1_L","FKMiddleFinger2_L","FKMiddleFinger3_L","FKThumbFinger1_L","FKThumbFinger2_L","FKThumbFinger3_L","FKIndexFinger1_L","FKIndexFinger2_L","FKIndexFinger3_L","FKRingFinger1_L","FKRingFinger2_L","FKRingFinger3_L","FKPinkyFinger1_L","FKPinkyFinger2_L","FKPinkyFinger3_L"};
+		for ($a = 0; $a < size($jeuseanfbxbone); $a++)  
+			{  
+				textField -e -tx $jeuseanfbxbone[$a] ("sourceConstrain1" + $a); 
+				textField -e -tx $jeuseanmactrl[$a] ("targetConstrain1" + $a); 
+			}
+	//约束组二UI布局
+	setParent OnlyRunConstrainframeLayout;
+		text " ―――――――――――――    约束组二    ――――――――――――― ";
+		scrollLayout -cr 30 -h 115 -w 350 scrollLayout2;
+		for ($i = 0; $i < 30; $i++)  
+			{  
+				string $rowLayout = `rowLayout -adj 2 -nc 4 -columnWidth4 55 115 55 110 -parent scrollLayout2`;  
+			
+				text -label ("约束对象：") -parent $rowLayout;  
+				textField -w 110 -parent $rowLayout ("sourceConstrain2" + $i);  
+				text -label ("目标对象：") -parent $rowLayout;  
+				textField -w 110 -parent $rowLayout ("targetConstrain2" + $i);  
+			}
+		//约束组二初始数据输入
+		string $jeuseanmabone[] = {"UnrealRoot","Root_M","Spine1_M","Spine2_M","Chest_M","Neck_M","Neck1_M","Head_M","Scapula_L","Scapula_R","Shoulder_L","Shoulder_R"};
+		string $headmabone[] = {"UnrealRoot","Root_M","Spine1_M","Spine2_M","Chest_M","Neck_M","Neck1_M","Head_M","Scapula_L","Scapula_R","Shoulder_L","Shoulder_R"};
+		for ($a = 0; $a < size($jeuseanmabone); $a++)  
+			{  
+				textField -e -tx $jeuseanmabone[$a] ("sourceConstrain2" + $a); 
+				textField -e -tx $headmabone[$a] ("targetConstrain2" + $a); 
+			}
+	setParent WTAFFMframeLayout3;
+		rowLayout -adj 2 -nc 4 -columnWidth4 55 240 30 30;
+		text -label ("制作路径：");
+		textField -w 240 -tx "" errorlog;
+		button -w 30 -h 20 -ann "刷新制作路径" -label "刷新" -c "flush";
+		button -w 30 -h 20 -ann "打开制作路径" -label "打开" -c "openfilepath";
+		string $Characternum = `textField -q -tx characternum`;
+		string $FilePath = "Z:\\WT\\WT_maya\\scenes\\Rig\\Player\\" + $Characternum;
+		textField -e -tx $FilePath errorlog; 
+	rowLayout -adj 1 -p WTAFFMframeLayout3 -nc 2 -columnWidth2 335 30; 
+		button -ann "将勾选文件拷贝到上传路径" -c "CopyFileToSend" -label "拷贝勾选文件至上传目录";
+		button -ann "在Ceres上定位FacialAnMa" -label "Ceres" -c "CeresFacialAnMa";
+	separator -h 5 -style "none" -p WTAFFMscrollLayout;
+showWindow;  
+}
+
+	//拷贝勾选文件至上传目录
+global proc CopyFileToSend () 
+{
+	$FacialKey = `checkBox -q -v FacialcheckBox`;
+	$BodyWithFacialKey = `checkBox -q -v BodyWithFacialcheckBox`;
+	string $WTFileName = `optionVar -q WTFileName`;
+	string $Charactername = `textField -q -tx charactername`;
+	string $Characternum = `textField -q -tx characternum`;
+	string $CeresRigtextField = `textField -q -tx CeresRigtextField`;
+	string $FacialSendFilePath = $WTFileName + $CeresRigtextField + "/Origin/An";
+	string $BodyWithFacialSendFilePath = "/192.168.20.102/projects/CIDA_RG/临时文件/WT角色身体+表情文件";
+	string $SaveFacialAnMa = "Z:/WT/WT_maya/scenes/Rig/Player/" + $Characternum + "/SK_Player_" + $Charactername + "_Origin_Facial_An_01.ma";
+	string $SaveBodyWithFacialAnMa = "Z:/WT/WT_maya/scenes/Rig/Player/" + $Characternum + "/SK_Player_" + $Charactername + "_Origin_BodyWithFacial_An_01.ma";
+	if ($FacialKey == 1)
+	{
+		$SaveFacialAnMa = toNativePath($SaveFacialAnMa);
+		$FacialSendFilePath = toNativePath($FacialSendFilePath);
+		system("copy \"" + $SaveFacialAnMa + "\" \"" + $FacialSendFilePath + "\"");
+	}
+	if ($BodyWithFacialKey == 1)
+	{
+		$SaveBodyWithFacialAnMa = toNativePath($SaveBodyWithFacialAnMa);
+		$BodyWithFacialSendFilePath = toNativePath($BodyWithFacialSendFilePath);
+		system("copy \"" + $SaveBodyWithFacialAnMa + "\" \"" + $BodyWithFacialSendFilePath + "\"");
+	}
+}
+
+	//展开第三步制作时隐藏约束组
+global proc HideConstrainframeLayout () 
+{
+	frameLayout -e -vis 0 OnlyRunConstrainframeLayout;
+	button -e -label "◆" ShowConstrainframeLayoutbutton;
+}
+
+	//展开约束组
+global proc ShowConstrainframeLayout () 
+{
+	int $ConstrainHeightGet = `frameLayout -q -vis OnlyRunConstrainframeLayout`;
+	if ($ConstrainHeightGet == 0)
+	{
+		button -e -label "▼" ShowConstrainframeLayoutbutton;
+		frameLayout -e -vis 1 OnlyRunConstrainframeLayout;
+	}else{
+		button -e -label "◆" ShowConstrainframeLayoutbutton;
+		frameLayout -e -vis 0 OnlyRunConstrainframeLayout;
+	}
+}
+
+	//勾选BodyWithFacial时同时勾选Facial
+global proc TogetherFacial () 
+{
+	$BodyWithFacialKey = `checkBox -q -v BodyWithFacialcheckBox`;
+	if ($BodyWithFacialKey == 1)
+	{
+		checkBox -e -v  1 FacialcheckBox;
+	}
+}
+
+	//取消勾选Facial时同时取消勾选BodyWithFacial
+global proc TogetherBodyWithFacial () 
+{
+	$FacialKey = `checkBox -q -v FacialcheckBox`;
+	if ($FacialKey == 0)
+	{
+		checkBox -e -v  0 BodyWithFacialcheckBox;
+	}
+}
+
+//制作PV的Facial文件（fbx）
+	//制作文件
+global proc PVFacialMake () 
+{
+	string $WTFileName = `optionVar -q WTFileName`;
+	string $Charactername = `textField -q -tx charactername`;
+	string $CeresRigtextField = `textField -q -tx CeresRigtextField`;
+	string $PVFacialField = $WTFileName + $CeresRigtextField + "/Origin/PV/SK_Player_" + $Charactername + "_Origin_Facial_PV_01.ma";
+	string $PVFacialOldField = $WTFileName + $CeresRigtextField + "/Origin/PV/SK_Player_" + $Charactername + "_White_Origin_Facial_PV_01.ma";
+	int $existsPVFacialField = `file -exists -q $PVFacialField`;
+	if (!$existsPVFacialField) {
+		$PVFacialField = $PVFacialOldField;
+	}
+	string $PVFacialFbxField = $WTFileName + $CeresRigtextField + "/Origin/PV/SK_Player_" + $Charactername + "_Origin_Facial_PV_01.fbx";
+	if ($Charactername == "")
+	{
+		error ("请载入角色数据！\n");
+	}else
+	{
+		file -f -new;
+		//设置场景Z轴朝上
+		upAxis -ax z -rv;
+		file -f -open -options "v=0;" $PVFacialField;
+		delete ($Charactername + "_LOD");
+		//不烘焙动画
+		FBXExportAnimationOnly -v false;
+		//导出Z轴向上
+		FBXExportUpAxis z;
+		FBXExport -f $PVFacialFbxField;
+		print ($PVFacialFbxField + "已制作完成！\n");
+	}
+}
+
+	//检查文件
+global proc PVFacialCheck () 
+{
+	string $WTFileName = `optionVar -q WTFileName`;
+	string $Charactername = `textField -q -tx charactername`;
+	string $CeresRigtextField = `textField -q -tx CeresRigtextField`;
+	string $PVFacialFbxField = $WTFileName + $CeresRigtextField + "/Origin/PV/SK_Player_" + $Charactername + "_Origin_Facial_PV_01.fbx";
+	if ($Charactername == "")
+	{
+		error ("请载入角色数据！\n");
+	}else
+	{
+		if (`file -exists -q $PVFacialFbxField` == 0)
+		{
+			error ("请先制作文件！\n");
+		}else
+		{
+			file -f -new;
+			//设置场景Y轴朝上
+			upAxis -ax y -rv;
+			file -f -import -f -options "v=0" $PVFacialFbxField;
+			//居中场景
+			viewSet -animate 0 -home;
+			viewFit -animate 0 -all;
+			print ("已成功导入：" + $PVFacialFbxField + "\n");
+		}
+	}
+}
+
+	//ceres定位
+global proc PVFacialCeres () 
+{
+	string $Charactername = `textField -q -tx charactername`;
+	string $CeresRigtextField = `textField -q -tx CeresRigtextField`;
+	string $PVFacialFbxField = $CeresRigtextField + "/Origin/PV/SK_Player_" + $Charactername + "_Origin_Facial_PV_01.fbx";
+	if ($Charactername == "")
+	{
+		error ("请载入角色数据！\n");
+	}else
+	{
+		textField -e -tx $PVFacialFbxField quickopenFilePath;
+		textField -e -tx "WT" ProjectTextField;
+		optionVar -sv NowProject (`optionVar -q WTFileName`);
+		changetoCeres ();
+		print ("开始定位！\n");
+	}
+}
+
+//制作Game的Facial文件（fbx）
+	//制作文件
+global proc GameFacialMake () 
+{
+	string $WTFileName = `optionVar -q WTFileName`;
+	string $Charactername = `textField -q -tx charactername`;
+	string $CeresRigtextField = `textField -q -tx CeresRigtextField`;
+	string $PVFacialField = $WTFileName + $CeresRigtextField + "/Origin/PV/SK_Player_" + $Charactername + "_Origin_Facial_PV_01.ma";
+	string $PVFacialOldField = $WTFileName + $CeresRigtextField + "/Origin/PV/SK_Player_" + $Charactername + "_White_Origin_Facial_PV_01.ma";
+	int $existsPVFacialField = `file -exists -q $PVFacialField`;
+	if (!$existsPVFacialField) {
+		$PVFacialField = $PVFacialOldField;
+	}
+	string $GameFacialFbxField = $WTFileName + $CeresRigtextField + "/Origin/Game/SK_Player_" + $Charactername + "_Origin_Facial_Lod_01.fbx";
+	if ($Charactername == "")
+	{
+		error ("请载入角色数据！\n");
+	}else
+	{
+		file -f -new;
+		//设置场景Z轴朝上
+		upAxis -ax z -rv;
+		file -f -open -options "v=0;" $PVFacialField;
+		delete LOD_PV;
+		string $DeleteBone[] = {"FACIAL_C_12IPV_AdamsA1","FACIAL_C_12IPV_AdamsA2","FACIAL_C_12IPV_Chin3","FACIAL_C_12IPV_Chin4","FACIAL_C_12IPV_Forehead1","FACIAL_C_12IPV_Forehead2","FACIAL_C_12IPV_Forehead3","FACIAL_C_12IPV_Forehead4","FACIAL_C_12IPV_Forehead5","FACIAL_C_12IPV_Forehead6","FACIAL_C_12IPV_LipLowerSkin1","FACIAL_C_12IPV_LipLowerSkin2","FACIAL_C_12IPV_LipUpperSkin1","FACIAL_C_12IPV_LipUpperSkin2","FACIAL_C_12IPV_NeckB1","FACIAL_C_12IPV_NeckB2","FACIAL_C_12IPV_NeckBackA1","FACIAL_C_12IPV_NeckBackA2","FACIAL_C_12IPV_NeckBackB1","FACIAL_C_12IPV_NeckBackB2","FACIAL_C_12IPV_NoseBridge1","FACIAL_C_12IPV_NoseBridge2","FACIAL_C_12IPV_NoseL1","FACIAL_C_12IPV_NoseL2","FACIAL_C_12IPV_NoseTip1","FACIAL_C_12IPV_NoseTip2","FACIAL_C_12IPV_NoseTip3","FACIAL_C_12IPV_NoseUpper1","FACIAL_C_12IPV_NoseUpper2","FACIAL_C_Chin1","FACIAL_C_Chin2","FACIAL_C_Chin3","FACIAL_C_Forehead1","FACIAL_C_Forehead2","FACIAL_C_Forehead3","FACIAL_C_ForeheadSkin","FACIAL_C_Hair1","FACIAL_C_Hair2","FACIAL_C_Hair3","FACIAL_C_Hair4","FACIAL_C_Hair5","FACIAL_C_Hair6","FACIAL_C_LipLower1","FACIAL_C_LipLower2","FACIAL_C_LipLower3","FACIAL_C_LipLowerSkin","FACIAL_C_LipUpper1","FACIAL_C_LipUpper2","FACIAL_C_LipUpper3","FACIAL_C_LipUpperSkin","FACIAL_C_Neck1Root","FACIAL_C_NeckB","FACIAL_C_NeckBackA","FACIAL_C_NeckBackB","FACIAL_C_NoseUpper","FACIAL_C_TongueLower3","FACIAL_C_TongueUpper1","FACIAL_C_TongueUpper2","FACIAL_C_TongueUpper3","FACIAL_L_12IPV_CheekL1","FACIAL_L_12IPV_CheekL2","FACIAL_L_12IPV_CheekL3","FACIAL_L_12IPV_CheekL4","FACIAL_L_12IPV_CheekOuter1","FACIAL_L_12IPV_CheekOuter2","FACIAL_L_12IPV_CheekOuter3","FACIAL_L_12IPV_CheekOuter4","FACIAL_L_12IPV_Chin1","FACIAL_L_12IPV_Chin2","FACIAL_L_12IPV_Chin5","FACIAL_L_12IPV_Chin6","FACIAL_L_12IPV_Chin7","FACIAL_L_12IPV_Chin8","FACIAL_L_12IPV_Chin9","FACIAL_L_12IPV_Chin10","FACIAL_L_12IPV_Chin11","FACIAL_L_12IPV_Chin12","FACIAL_L_12IPV_Chin13","FACIAL_L_12IPV_Chin14","FACIAL_L_12IPV_ChinS1","FACIAL_L_12IPV_ChinS2","FACIAL_L_12IPV_ChinS3","FACIAL_L_12IPV_ChinS4","FACIAL_L_12IPV_EyeCornerO1","FACIAL_L_12IPV_EyeCornerO2","FACIAL_L_12IPV_EyesackL1","FACIAL_L_12IPV_EyesackL2","FACIAL_L_12IPV_EyesackL3","FACIAL_L_12IPV_EyesackL4","FACIAL_L_12IPV_EyesackL5","FACIAL_L_12IPV_EyesackL6","FACIAL_L_12IPV_EyesackL7","FACIAL_L_12IPV_EyesackL8","FACIAL_L_12IPV_EyesackU0","FACIAL_L_12IPV_Forehead1","FACIAL_L_12IPV_Forehead2","FACIAL_L_12IPV_Forehead3","FACIAL_L_12IPV_Forehead4","FACIAL_L_12IPV_Forehead5","FACIAL_L_12IPV_Forehead6","FACIAL_L_12IPV_ForeheadIn1","FACIAL_L_12IPV_ForeheadIn2","FACIAL_L_12IPV_ForeheadIn3","FACIAL_L_12IPV_ForeheadIn4","FACIAL_L_12IPV_ForeheadIn5","FACIAL_L_12IPV_ForeheadIn6","FACIAL_L_12IPV_ForeheadIn7","FACIAL_L_12IPV_ForeheadIn8","FACIAL_L_12IPV_ForeheadIn9","FACIAL_L_12IPV_ForeheadIn10","FACIAL_L_12IPV_ForeheadIn11","FACIAL_L_12IPV_ForeheadIn12","FACIAL_L_12IPV_ForeheadIn13","FACIAL_L_12IPV_ForeheadIn14","FACIAL_L_12IPV_ForeheadMid15","FACIAL_L_12IPV_ForeheadMid16","FACIAL_L_12IPV_ForeheadMid17","FACIAL_L_12IPV_ForeheadMid18","FACIAL_L_12IPV_ForeheadMid19","FACIAL_L_12IPV_ForeheadMid20","FACIAL_L_12IPV_ForeheadMid21","FACIAL_L_12IPV_ForeheadMid22","FACIAL_L_12IPV_ForeheadOut23","FACIAL_L_12IPV_ForeheadOut24","FACIAL_L_12IPV_ForeheadOut25","FACIAL_L_12IPV_ForeheadOut26","FACIAL_L_12IPV_ForeheadOut27","FACIAL_L_12IPV_ForeheadOut28","FACIAL_L_12IPV_ForeheadOut29","FACIAL_L_12IPV_ForeheadOut30","FACIAL_L_12IPV_ForeheadOut31","FACIAL_L_12IPV_ForeheadOut32","FACIAL_L_12IPV_ForeheadSkin1","FACIAL_L_12IPV_ForeheadSkin2","FACIAL_L_12IPV_ForeheadSkin3","FACIAL_L_12IPV_ForeheadSkin4","FACIAL_L_12IPV_ForeheadSkin5","FACIAL_L_12IPV_ForeheadSkin6","FACIAL_L_12IPV_Hair1","FACIAL_L_12IPV_Jawline1","FACIAL_L_12IPV_Jawline2","FACIAL_L_12IPV_Jawline3","FACIAL_L_12IPV_Jawline4","FACIAL_L_12IPV_Jawline5","FACIAL_L_12IPV_Jawline6","FACIAL_L_12IPV_LipCorner1","FACIAL_L_12IPV_LipCorner2","FACIAL_L_12IPV_LipCorner3","FACIAL_L_12IPV_LipLower1","FACIAL_L_12IPV_LipLower2","FACIAL_L_12IPV_LipLower3","FACIAL_L_12IPV_LipLower4","FACIAL_L_12IPV_LipLower5","FACIAL_L_12IPV_LipLower6","FACIAL_L_12IPV_LipLower7","FACIAL_L_12IPV_LipLower8","FACIAL_L_12IPV_LipLower9","FACIAL_L_12IPV_LipLower10","FACIAL_L_12IPV_LipLower11","FACIAL_L_12IPV_LipLower12","FACIAL_L_12IPV_LipLower13","FACIAL_L_12IPV_LipLower14","FACIAL_L_12IPV_LipLower15","FACIAL_L_12IPV_LipLower16","FACIAL_L_12IPV_LipLower17","FACIAL_L_12IPV_LipLower18","FACIAL_L_12IPV_LipLower19","FACIAL_L_12IPV_LipLower20","FACIAL_L_12IPV_LipLower21","FACIAL_L_12IPV_LipLower22","FACIAL_L_12IPV_LipLower23","FACIAL_L_12IPV_LipLower24","FACIAL_L_12IPV_LipLowerOuterSkin1","FACIAL_L_12IPV_LipLowerOuterSkin2","FACIAL_L_12IPV_LipLowerOuterSkin3","FACIAL_L_12IPV_LipLowerSkin","FACIAL_L_12IPV_LipUpper1","FACIAL_L_12IPV_LipUpper2","FACIAL_L_12IPV_LipUpper3","FACIAL_L_12IPV_LipUpper4","FACIAL_L_12IPV_LipUpper5","FACIAL_L_12IPV_LipUpper6","FACIAL_L_12IPV_LipUpper7","FACIAL_L_12IPV_LipUpper8","FACIAL_L_12IPV_LipUpper9","FACIAL_L_12IPV_LipUpper10","FACIAL_L_12IPV_LipUpper11","FACIAL_L_12IPV_LipUpper12","FACIAL_L_12IPV_LipUpper13","FACIAL_L_12IPV_LipUpper14","FACIAL_L_12IPV_LipUpper15","FACIAL_L_12IPV_LipUpper16","FACIAL_L_12IPV_LipUpper17","FACIAL_L_12IPV_LipUpper18","FACIAL_L_12IPV_LipUpper19","FACIAL_L_12IPV_LipUpper20","FACIAL_L_12IPV_LipUpper21","FACIAL_L_12IPV_LipUpper22","FACIAL_L_12IPV_LipUpper23","FACIAL_L_12IPV_LipUpper24","FACIAL_L_12IPV_LipUpperOuterSkin1","FACIAL_L_12IPV_LipUpperOuterSkin2","FACIAL_L_12IPV_LipUpperSkin","FACIAL_L_12IPV_MouthInteriorLower1","FACIAL_L_12IPV_MouthInteriorLower2","FACIAL_L_12IPV_MouthInteriorUpper1","FACIAL_L_12IPV_MouthInteriorUpper2","FACIAL_L_12IPV_NasolabialB1","FACIAL_L_12IPV_NasolabialB2","FACIAL_L_12IPV_NasolabialB3","FACIAL_L_12IPV_NasolabialB4","FACIAL_L_12IPV_NasolabialB5","FACIAL_L_12IPV_NasolabialB6","FACIAL_L_12IPV_NasolabialB7","FACIAL_L_12IPV_NasolabialB8","FACIAL_L_12IPV_NasolabialB9","FACIAL_L_12IPV_NasolabialB10","FACIAL_L_12IPV_NasolabialB11","FACIAL_L_12IPV_NasolabialB12","FACIAL_L_12IPV_NasolabialB13","FACIAL_L_12IPV_NasolabialB14","FACIAL_L_12IPV_NasolabialB15","FACIAL_L_12IPV_NasolabialF1","FACIAL_L_12IPV_NasolabialF2","FACIAL_L_12IPV_NasolabialF3","FACIAL_L_12IPV_NasolabialF4","FACIAL_L_12IPV_NasolabialF5","FACIAL_L_12IPV_NasolabialF6","FACIAL_L_12IPV_NasolabialF7","FACIAL_L_12IPV_NasolabialF8","FACIAL_L_12IPV_NasolabialF9","FACIAL_L_12IPV_NeckA1","FACIAL_L_12IPV_NeckA2","FACIAL_L_12IPV_NeckA3","FACIAL_L_12IPV_NeckA4","FACIAL_L_12IPV_NeckA5","FACIAL_L_12IPV_NeckA6","FACIAL_L_12IPV_NeckB3","FACIAL_L_12IPV_NeckB4","FACIAL_L_12IPV_NeckB5","FACIAL_L_12IPV_NeckB6","FACIAL_L_12IPV_NeckB7","FACIAL_L_12IPV_NeckBackA1","FACIAL_L_12IPV_NeckBackA2","FACIAL_L_12IPV_NeckBackB1","FACIAL_L_12IPV_NeckBackB2","FACIAL_L_12IPV_NoseBridge1","FACIAL_L_12IPV_NoseBridge2","FACIAL_L_12IPV_NoseTip1","FACIAL_L_12IPV_NoseTip2","FACIAL_L_12IPV_NoseTip3","FACIAL_L_12IPV_NoseUpper1","FACIAL_L_12IPV_NoseUpper2","FACIAL_L_12IPV_NoseUpper3","FACIAL_L_12IPV_NoseUpper4","FACIAL_L_12IPV_NoseUpper5","FACIAL_L_12IPV_NoseUpper6","FACIAL_L_12IPV_Nostril1","FACIAL_L_12IPV_Nostril2","FACIAL_L_12IPV_Nostril3","FACIAL_L_12IPV_Nostril4","FACIAL_L_12IPV_Nostril5","FACIAL_L_12IPV_Nostril6","FACIAL_L_12IPV_Nostril7","FACIAL_L_12IPV_Nostril8","FACIAL_L_12IPV_Nostril9","FACIAL_L_12IPV_Nostril10","FACIAL_L_12IPV_Nostril11","FACIAL_L_12IPV_Nostril12","FACIAL_L_12IPV_Nostril13","FACIAL_L_12IPV_Nostril14","FACIAL_L_12IPV_Temple1","FACIAL_L_12IPV_Temple2","FACIAL_L_12IPV_Temple3","FACIAL_L_12IPV_Temple4","FACIAL_L_12IPV_UnderChin1","FACIAL_L_12IPV_UnderChin2","FACIAL_L_12IPV_UnderChin3","FACIAL_L_12IPV_UnderChin4","FACIAL_L_12IPV_UnderChin5","FACIAL_L_12IPV_UnderChin6","FACIAL_L_CheekInner1","FACIAL_L_CheekInner2","FACIAL_L_CheekInner3","FACIAL_L_CheekInner4","FACIAL_L_CheekLower1","FACIAL_L_CheekLower2","FACIAL_L_CheekOuter1","FACIAL_L_CheekOuter2","FACIAL_L_CheekOuter3","FACIAL_L_CheekOuter4","FACIAL_L_Chin1","FACIAL_L_Chin2","FACIAL_L_Chin3","FACIAL_L_Ear1","FACIAL_L_Ear2","FACIAL_L_Ear3","FACIAL_L_Ear4","FACIAL_L_EyeCornerInner1","FACIAL_L_EyeCornerInner2","FACIAL_L_EyeCornerOuter1","FACIAL_L_EyeCornerOuter2","FACIAL_L_EyelashesCornerOuter1","FACIAL_L_EyelashesUpperA1","FACIAL_L_EyelashesUpperA2","FACIAL_L_EyelashesUpperA3","FACIAL_L_EyelidLowerA1","FACIAL_L_EyelidLowerA2","FACIAL_L_EyelidLowerA3","FACIAL_L_EyelidLowerB1","FACIAL_L_EyelidLowerB2","FACIAL_L_EyelidLowerB3","FACIAL_L_EyelidUpperA1","FACIAL_L_EyelidUpperA2","FACIAL_L_EyelidUpperA3","FACIAL_L_EyelidUpperB1","FACIAL_L_EyelidUpperB2","FACIAL_L_EyelidUpperB3","FACIAL_L_EyelidUpperFurrow1","FACIAL_L_EyelidUpperFurrow2","FACIAL_L_EyelidUpperFurrow3","FACIAL_L_EyesackLower1","FACIAL_L_EyesackLower2","FACIAL_L_EyesackUpper1","FACIAL_L_EyesackUpper2","FACIAL_L_EyesackUpper3","FACIAL_L_EyesackUpper4","FACIAL_L_Forehead1","FACIAL_L_Forehead2","FACIAL_L_Forehead3","FACIAL_L_ForeheadInA1","FACIAL_L_ForeheadInA2","FACIAL_L_ForeheadInA3","FACIAL_L_ForeheadInB1","FACIAL_L_ForeheadInB2","FACIAL_L_ForeheadInSkin","FACIAL_L_ForeheadMid1","FACIAL_L_ForeheadMid2","FACIAL_L_ForeheadMidSkin","FACIAL_L_ForeheadOutA1","FACIAL_L_ForeheadOutA2","FACIAL_L_ForeheadOutB1","FACIAL_L_ForeheadOutB2","FACIAL_L_ForeheadOutSkin","FACIAL_L_HairA1","FACIAL_L_HairA2","FACIAL_L_HairA3","FACIAL_L_HairA4","FACIAL_L_HairA5","FACIAL_L_HairA6","FACIAL_L_HairB1","FACIAL_L_HairB2","FACIAL_L_HairB3","FACIAL_L_HairB4","FACIAL_L_HairB5","FACIAL_L_HairC1","FACIAL_L_HairC2","FACIAL_L_HairC3","FACIAL_L_HairC4","FACIAL_L_JawBulge","FACIAL_L_JawRecess","FACIAL_L_Jawline1","FACIAL_L_Jawline2","FACIAL_L_LipCorner1","FACIAL_L_LipCorner2","FACIAL_L_LipCorner3","FACIAL_L_LipLower1","FACIAL_L_LipLower2","FACIAL_L_LipLower3","FACIAL_L_LipLowerOuter1","FACIAL_L_LipLowerOuter2","FACIAL_L_LipLowerOuter3","FACIAL_L_LipLowerOuterSkin","FACIAL_L_LipLowerSkin","FACIAL_L_LipUpper1","FACIAL_L_LipUpper2","FACIAL_L_LipUpper3","FACIAL_L_LipUpperOuter1","FACIAL_L_LipUpperOuter2","FACIAL_L_LipUpperOuter3","FACIAL_L_LipUpperOuterSkin","FACIAL_L_LipUpperSkin","FACIAL_L_NasolabialBulge1","FACIAL_L_NasolabialBulge2","FACIAL_L_NasolabialBulge3","FACIAL_L_NeckA1","FACIAL_L_NeckA2","FACIAL_L_NeckA3","FACIAL_L_NeckB1","FACIAL_L_NeckB2","FACIAL_L_NeckBackA","FACIAL_L_NeckBackB","FACIAL_L_NoseBridge","FACIAL_L_NoseUpper","FACIAL_L_NostrilThickness1","FACIAL_L_NostrilThickness2","FACIAL_L_NostrilThickness3","FACIAL_L_Pupil","FACIAL_L_Sideburn1","FACIAL_L_Sideburn2","FACIAL_L_Sideburn3","FACIAL_L_Sideburn4","FACIAL_L_Sideburn5","FACIAL_L_Sideburn6","FACIAL_L_TongueSide1","FACIAL_L_TongueSide2","FACIAL_L_TongueSide3","FACIAL_L_TongueSide4","FACIAL_R_12IPV_CheekL1","FACIAL_R_12IPV_CheekL2","FACIAL_R_12IPV_CheekL3","FACIAL_R_12IPV_CheekL4","FACIAL_R_12IPV_CheekOuter1","FACIAL_R_12IPV_CheekOuter2","FACIAL_R_12IPV_CheekOuter3","FACIAL_R_12IPV_CheekOuter4","FACIAL_R_12IPV_Chin1","FACIAL_R_12IPV_Chin2","FACIAL_R_12IPV_Chin5","FACIAL_R_12IPV_Chin6","FACIAL_R_12IPV_Chin7","FACIAL_R_12IPV_Chin8","FACIAL_R_12IPV_Chin9","FACIAL_R_12IPV_Chin10","FACIAL_R_12IPV_Chin11","FACIAL_R_12IPV_Chin12","FACIAL_R_12IPV_Chin13","FACIAL_R_12IPV_Chin14","FACIAL_R_12IPV_ChinS1","FACIAL_R_12IPV_ChinS2","FACIAL_R_12IPV_ChinS3","FACIAL_R_12IPV_ChinS4","FACIAL_R_12IPV_EyeCornerO1","FACIAL_R_12IPV_EyeCornerO2","FACIAL_R_12IPV_EyesackL1","FACIAL_R_12IPV_EyesackL2","FACIAL_R_12IPV_EyesackL3","FACIAL_R_12IPV_EyesackL4","FACIAL_R_12IPV_EyesackL5","FACIAL_R_12IPV_EyesackL6","FACIAL_R_12IPV_EyesackL7","FACIAL_R_12IPV_EyesackL8","FACIAL_R_12IPV_EyesackU0","FACIAL_R_12IPV_Forehead1","FACIAL_R_12IPV_Forehead2","FACIAL_R_12IPV_Forehead3","FACIAL_R_12IPV_Forehead4","FACIAL_R_12IPV_Forehead5","FACIAL_R_12IPV_Forehead6","FACIAL_R_12IPV_ForeheadIn1","FACIAL_R_12IPV_ForeheadIn2","FACIAL_R_12IPV_ForeheadIn3","FACIAL_R_12IPV_ForeheadIn4","FACIAL_R_12IPV_ForeheadIn5","FACIAL_R_12IPV_ForeheadIn6","FACIAL_R_12IPV_ForeheadIn7","FACIAL_R_12IPV_ForeheadIn8","FACIAL_R_12IPV_ForeheadIn9","FACIAL_R_12IPV_ForeheadIn10","FACIAL_R_12IPV_ForeheadIn11","FACIAL_R_12IPV_ForeheadIn12","FACIAL_R_12IPV_ForeheadIn13","FACIAL_R_12IPV_ForeheadIn14","FACIAL_R_12IPV_ForeheadMid15","FACIAL_R_12IPV_ForeheadMid16","FACIAL_R_12IPV_ForeheadMid17","FACIAL_R_12IPV_ForeheadMid18","FACIAL_R_12IPV_ForeheadMid19","FACIAL_R_12IPV_ForeheadMid20","FACIAL_R_12IPV_ForeheadMid21","FACIAL_R_12IPV_ForeheadMid22","FACIAL_R_12IPV_ForeheadOut23","FACIAL_R_12IPV_ForeheadOut24","FACIAL_R_12IPV_ForeheadOut25","FACIAL_R_12IPV_ForeheadOut26","FACIAL_R_12IPV_ForeheadOut27","FACIAL_R_12IPV_ForeheadOut28","FACIAL_R_12IPV_ForeheadOut29","FACIAL_R_12IPV_ForeheadOut30","FACIAL_R_12IPV_ForeheadOut31","FACIAL_R_12IPV_ForeheadOut32","FACIAL_R_12IPV_ForeheadSkin1","FACIAL_R_12IPV_ForeheadSkin2","FACIAL_R_12IPV_ForeheadSkin3","FACIAL_R_12IPV_ForeheadSkin4","FACIAL_R_12IPV_ForeheadSkin5","FACIAL_R_12IPV_ForeheadSkin6","FACIAL_R_12IPV_Hair1","FACIAL_R_12IPV_Jawline1","FACIAL_R_12IPV_Jawline2","FACIAL_R_12IPV_Jawline3","FACIAL_R_12IPV_Jawline4","FACIAL_R_12IPV_Jawline5","FACIAL_R_12IPV_Jawline6","FACIAL_R_12IPV_LipCorner1","FACIAL_R_12IPV_LipCorner2","FACIAL_R_12IPV_LipCorner3","FACIAL_R_12IPV_LipLower1","FACIAL_R_12IPV_LipLower2","FACIAL_R_12IPV_LipLower3","FACIAL_R_12IPV_LipLower4","FACIAL_R_12IPV_LipLower5","FACIAL_R_12IPV_LipLower6","FACIAL_R_12IPV_LipLower7","FACIAL_R_12IPV_LipLower8","FACIAL_R_12IPV_LipLower9","FACIAL_R_12IPV_LipLower10","FACIAL_R_12IPV_LipLower11","FACIAL_R_12IPV_LipLower12","FACIAL_R_12IPV_LipLower13","FACIAL_R_12IPV_LipLower14","FACIAL_R_12IPV_LipLower15","FACIAL_R_12IPV_LipLower16","FACIAL_R_12IPV_LipLower17","FACIAL_R_12IPV_LipLower18","FACIAL_R_12IPV_LipLower19","FACIAL_R_12IPV_LipLower20","FACIAL_R_12IPV_LipLower21","FACIAL_R_12IPV_LipLower22","FACIAL_R_12IPV_LipLower23","FACIAL_R_12IPV_LipLower24","FACIAL_R_12IPV_LipLowerOuterSkin1","FACIAL_R_12IPV_LipLowerOuterSkin2","FACIAL_R_12IPV_LipLowerOuterSkin3","FACIAL_R_12IPV_LipLowerSkin","FACIAL_R_12IPV_LipUpper1","FACIAL_R_12IPV_LipUpper2","FACIAL_R_12IPV_LipUpper3","FACIAL_R_12IPV_LipUpper4","FACIAL_R_12IPV_LipUpper5","FACIAL_R_12IPV_LipUpper6","FACIAL_R_12IPV_LipUpper7","FACIAL_R_12IPV_LipUpper8","FACIAL_R_12IPV_LipUpper9","FACIAL_R_12IPV_LipUpper10","FACIAL_R_12IPV_LipUpper11","FACIAL_R_12IPV_LipUpper12","FACIAL_R_12IPV_LipUpper13","FACIAL_R_12IPV_LipUpper14","FACIAL_R_12IPV_LipUpper15","FACIAL_R_12IPV_LipUpper16","FACIAL_R_12IPV_LipUpper17","FACIAL_R_12IPV_LipUpper18","FACIAL_R_12IPV_LipUpper19","FACIAL_R_12IPV_LipUpper20","FACIAL_R_12IPV_LipUpper21","FACIAL_R_12IPV_LipUpper22","FACIAL_R_12IPV_LipUpper23","FACIAL_R_12IPV_LipUpper24","FACIAL_R_12IPV_LipUpperOuterSkin1","FACIAL_R_12IPV_LipUpperOuterSkin2","FACIAL_R_12IPV_LipUpperSkin","FACIAL_R_12IPV_MouthInteriorLower1","FACIAL_R_12IPV_MouthInteriorLower2","FACIAL_R_12IPV_MouthInteriorUpper1","FACIAL_R_12IPV_MouthInteriorUpper2","FACIAL_R_12IPV_NasolabialB1","FACIAL_R_12IPV_NasolabialB2","FACIAL_R_12IPV_NasolabialB3","FACIAL_R_12IPV_NasolabialB4","FACIAL_R_12IPV_NasolabialB5","FACIAL_R_12IPV_NasolabialB6","FACIAL_R_12IPV_NasolabialB7","FACIAL_R_12IPV_NasolabialB8","FACIAL_R_12IPV_NasolabialB9","FACIAL_R_12IPV_NasolabialB10","FACIAL_R_12IPV_NasolabialB11","FACIAL_R_12IPV_NasolabialB12","FACIAL_R_12IPV_NasolabialB13","FACIAL_R_12IPV_NasolabialB14","FACIAL_R_12IPV_NasolabialB15","FACIAL_R_12IPV_NasolabialF1","FACIAL_R_12IPV_NasolabialF2","FACIAL_R_12IPV_NasolabialF3","FACIAL_R_12IPV_NasolabialF4","FACIAL_R_12IPV_NasolabialF5","FACIAL_R_12IPV_NasolabialF6","FACIAL_R_12IPV_NasolabialF7","FACIAL_R_12IPV_NasolabialF8","FACIAL_R_12IPV_NasolabialF9","FACIAL_R_12IPV_NeckA1","FACIAL_R_12IPV_NeckA2","FACIAL_R_12IPV_NeckA3","FACIAL_R_12IPV_NeckA4","FACIAL_R_12IPV_NeckA5","FACIAL_R_12IPV_NeckA6","FACIAL_R_12IPV_NeckB3","FACIAL_R_12IPV_NeckB4","FACIAL_R_12IPV_NeckB5","FACIAL_R_12IPV_NeckB6","FACIAL_R_12IPV_NeckB7","FACIAL_R_12IPV_NeckBackA1","FACIAL_R_12IPV_NeckBackA2","FACIAL_R_12IPV_NeckBackB1","FACIAL_R_12IPV_NeckBackB2","FACIAL_R_12IPV_NoseBridge1","FACIAL_R_12IPV_NoseBridge2","FACIAL_R_12IPV_NoseTip1","FACIAL_R_12IPV_NoseTip2","FACIAL_R_12IPV_NoseTip3","FACIAL_R_12IPV_NoseUpper1","FACIAL_R_12IPV_NoseUpper2","FACIAL_R_12IPV_NoseUpper3","FACIAL_R_12IPV_NoseUpper4","FACIAL_R_12IPV_NoseUpper5","FACIAL_R_12IPV_NoseUpper6","FACIAL_R_12IPV_Nostril1","FACIAL_R_12IPV_Nostril2","FACIAL_R_12IPV_Nostril3","FACIAL_R_12IPV_Nostril4","FACIAL_R_12IPV_Nostril5","FACIAL_R_12IPV_Nostril6","FACIAL_R_12IPV_Nostril7","FACIAL_R_12IPV_Nostril8","FACIAL_R_12IPV_Nostril9","FACIAL_R_12IPV_Nostril10","FACIAL_R_12IPV_Nostril11","FACIAL_R_12IPV_Nostril12","FACIAL_R_12IPV_Nostril13","FACIAL_R_12IPV_Nostril14","FACIAL_R_12IPV_Temple1","FACIAL_R_12IPV_Temple2","FACIAL_R_12IPV_Temple3","FACIAL_R_12IPV_Temple4","FACIAL_R_12IPV_UnderChin1","FACIAL_R_12IPV_UnderChin2","FACIAL_R_12IPV_UnderChin3","FACIAL_R_12IPV_UnderChin4","FACIAL_R_12IPV_UnderChin5","FACIAL_R_12IPV_UnderChin6","FACIAL_R_CheekInner1","FACIAL_R_CheekInner2","FACIAL_R_CheekInner3","FACIAL_R_CheekInner4","FACIAL_R_CheekLower1","FACIAL_R_CheekLower2","FACIAL_R_CheekOuter1","FACIAL_R_CheekOuter2","FACIAL_R_CheekOuter3","FACIAL_R_CheekOuter4","FACIAL_R_Chin1","FACIAL_R_Chin2","FACIAL_R_Chin3","FACIAL_R_Ear1","FACIAL_R_Ear2","FACIAL_R_Ear3","FACIAL_R_Ear4","FACIAL_R_EyeCornerInner1","FACIAL_R_EyeCornerInner2","FACIAL_R_EyeCornerOuter1","FACIAL_R_EyeCornerOuter2","FACIAL_R_EyelashesCornerOuter1","FACIAL_R_EyelashesUpperA1","FACIAL_R_EyelashesUpperA2","FACIAL_R_EyelashesUpperA3","FACIAL_R_EyelidLowerA1","FACIAL_R_EyelidLowerA2","FACIAL_R_EyelidLowerA3","FACIAL_R_EyelidLowerB1","FACIAL_R_EyelidLowerB2","FACIAL_R_EyelidLowerB3","FACIAL_R_EyelidUpperA1","FACIAL_R_EyelidUpperA2","FACIAL_R_EyelidUpperA3","FACIAL_R_EyelidUpperB1","FACIAL_R_EyelidUpperB2","FACIAL_R_EyelidUpperB3","FACIAL_R_EyelidUpperFurrow1","FACIAL_R_EyelidUpperFurrow2","FACIAL_R_EyelidUpperFurrow3","FACIAL_R_EyesackLower1","FACIAL_R_EyesackLower2","FACIAL_R_EyesackUpper1","FACIAL_R_EyesackUpper2","FACIAL_R_EyesackUpper3","FACIAL_R_EyesackUpper4","FACIAL_R_Forehead1","FACIAL_R_Forehead2","FACIAL_R_Forehead3","FACIAL_R_ForeheadInA1","FACIAL_R_ForeheadInA2","FACIAL_R_ForeheadInA3","FACIAL_R_ForeheadInB1","FACIAL_R_ForeheadInB2","FACIAL_R_ForeheadInSkin","FACIAL_R_ForeheadMid1","FACIAL_R_ForeheadMid2","FACIAL_R_ForeheadMidSkin","FACIAL_R_ForeheadOutA1","FACIAL_R_ForeheadOutA2","FACIAL_R_ForeheadOutB1","FACIAL_R_ForeheadOutB2","FACIAL_R_ForeheadOutSkin","FACIAL_R_HairA1","FACIAL_R_HairA2","FACIAL_R_HairA3","FACIAL_R_HairA4","FACIAL_R_HairA5","FACIAL_R_HairA6","FACIAL_R_HairB1","FACIAL_R_HairB2","FACIAL_R_HairB3","FACIAL_R_HairB4","FACIAL_R_HairB5","FACIAL_R_HairC1","FACIAL_R_HairC2","FACIAL_R_HairC3","FACIAL_R_HairC4","FACIAL_R_JawBulge","FACIAL_R_JawRecess","FACIAL_R_Jawline1","FACIAL_R_Jawline2","FACIAL_R_LipCorner1","FACIAL_R_LipCorner2","FACIAL_R_LipCorner3","FACIAL_R_LipLower1","FACIAL_R_LipLower2","FACIAL_R_LipLower3","FACIAL_R_LipLowerOuter1","FACIAL_R_LipLowerOuter2","FACIAL_R_LipLowerOuter3","FACIAL_R_LipLowerOuterSkin","FACIAL_R_LipLowerSkin","FACIAL_R_LipUpper1","FACIAL_R_LipUpper2","FACIAL_R_LipUpper3","FACIAL_R_LipUpperOuter1","FACIAL_R_LipUpperOuter2","FACIAL_R_LipUpperOuter3","FACIAL_R_LipUpperOuterSkin","FACIAL_R_LipUpperSkin","FACIAL_R_NasolabialBulge1","FACIAL_R_NasolabialBulge2","FACIAL_R_NasolabialBulge3","FACIAL_R_NeckA1","FACIAL_R_NeckA2","FACIAL_R_NeckA3","FACIAL_R_NeckB1","FACIAL_R_NeckB2","FACIAL_R_NeckBackA","FACIAL_R_NeckBackB","FACIAL_R_NoseBridge","FACIAL_R_NoseUpper","FACIAL_R_NostrilThickness1","FACIAL_R_NostrilThickness2","FACIAL_R_NostrilThickness3","FACIAL_R_Pupil","FACIAL_R_Sideburn1","FACIAL_R_Sideburn2","FACIAL_R_Sideburn3","FACIAL_R_Sideburn4","FACIAL_R_Sideburn5","FACIAL_R_Sideburn6","FACIAL_R_TongueSide1","FACIAL_R_TongueSide2","FACIAL_R_TongueSide3","FACIAL_R_TongueSide4"};
+		//for ($i = 0; $i < size($DeleteBone); $i++)
+		//{
+		//	if (`objExists $DeleteBone[$i]`) {
+		//		delete $DeleteBone[$i];
+		//	} else {
+		//		continue;
+		//	}
+		//}
+		delete $DeleteBone;
+		//不烘焙动画
+		FBXExportAnimationOnly -v false;
+		//导出Z轴向上
+		FBXExportUpAxis z;
+		FBXExport -f $GameFacialFbxField;
+		print ($GameFacialFbxField + "已制作完成！\n");
+	}
+}
+
+	//检查文件
+global proc GameFacialCheck () 
+{
+	string $WTFileName = `optionVar -q WTFileName`;
+	string $Charactername = `textField -q -tx charactername`;
+	string $CeresRigtextField = `textField -q -tx CeresRigtextField`;
+	string $GameFacialFbxField = $WTFileName + $CeresRigtextField + "/Origin/Game/SK_Player_" + $Charactername + "_Origin_Facial_Lod_01.fbx";
+	if ($Charactername == "")
+	{
+		error ("请载入角色数据！\n");
+	}else
+	{
+		if (`file -exists -q $GameFacialFbxField` == 0)
+		{
+			error ("请先制作文件！\n");
+		}else
+		{
+			file -f -new;
+			//设置场景Y轴朝上
+			upAxis -ax y -rv;
+			file -f -import -f -options "v=0" $GameFacialFbxField;
+			//居中场景
+			viewSet -animate 0 -home;
+			viewFit -animate 0 -all;
+			print ("已成功导入：" + $GameFacialFbxField + "\n");
+		}
+	}
+}
+
+	//ceres定位
+global proc GameFacialCeres () 
+{
+	string $Charactername = `textField -q -tx charactername`;
+	string $CeresRigtextField = `textField -q -tx CeresRigtextField`;
+	string $GameFacialFbxField = $CeresRigtextField + "/Origin/Game/SK_Player_" + $Charactername + "_Origin_Facial_Lod_01.fbx";
+	if ($Charactername == "")
+	{
+		error ("请载入角色数据！\n");
+	}else
+	{
+		textField -e -tx $GameFacialFbxField quickopenFilePath;
+		textField -e -tx "WT" ProjectTextField;
+		optionVar -sv NowProject (`optionVar -q WTFileName`);
+		changetoCeres ();
+		print ("开始定位！\n");
+	}
+}
+
+//整合动画编辑文件一键生成插件V.3
+	//ceres定位FacialPVma
+global proc CeresFacialPVma () 
+{
+	string $Charactername = `textField -q -tx charactername`;
+	string $CeresRigtextField = `textField -q -tx CeresRigtextField`;
+	string $GameFacialFbxField = $CeresRigtextField + "/Origin/PV/SK_Player_" + $Charactername + "_Origin_Facial_PV_01.ma";
+	if ($Charactername == "")
+	{
+		error ("请载入角色数据！\n");
+	}else
+	{
+		textField -e -tx $GameFacialFbxField quickopenFilePath;
+		textField -e -tx "WT" ProjectTextField;
+		optionVar -sv NowProject (`optionVar -q WTFileName`);
+		changetoCeres ();
+		print ("开始定位！\n");
+	}
+}
+	//ceres定位FacialAnMa
+global proc CeresFacialAnMa () 
+{
+	string $Charactername = `textField -q -tx charactername`;
+	string $CeresRigtextField = `textField -q -tx CeresRigtextField`;
+	string $GameFacialFbxField = $CeresRigtextField + "/Origin/An/SK_Player_" + $Charactername + "_Origin_Facial_An_01.ma";
+	if ($Charactername == "")
+	{
+		error ("请载入角色数据！\n");
+	}else
+	{
+		textField -e -tx $GameFacialFbxField quickopenFilePath;
+		textField -e -tx "WT" ProjectTextField;
+		optionVar -sv NowProject (`optionVar -q WTFileName`);
+		changetoCeres ();
+		print ("开始定位！\n");
+	}
+}
+	//ceres定位FacialAndna
+global proc CeresFacialAndna () 
+{
+	string $Charactername = `textField -q -tx charactername`;
+	string $CeresRigtextField = `textField -q -tx CeresRigtextField`;
+	string $GameFacialFbxField = $CeresRigtextField + "/Origin/An/SK_Player_" + $Charactername + "_Origin_Facial_An_01.dna";
+	if ($Charactername == "")
+	{
+		error ("请载入角色数据！\n");
+	}else
+	{
+		textField -e -tx $GameFacialFbxField quickopenFilePath;
+		textField -e -tx "WT" ProjectTextField;
+		optionVar -sv NowProject (`optionVar -q WTFileName`);
+		changetoCeres ();
+		print ("开始定位！\n");
+	}
+}
+	//ceres定位AnBodyfbx
+global proc CeresAnBodyfbx () 
+{
+	string $Charactername = `textField -q -tx charactername`;
+	string $CeresRigtextField = `textField -q -tx CeresRigtextField`;
+	string $GameFacialFbxField = $CeresRigtextField + "/Origin/An/SK_Player_" + $Charactername + "_Origin_An_01.fbx";
+	if ($Charactername == "")
+	{
+		error ("请载入角色数据！\n");
+	}else
+	{
+		textField -e -tx $GameFacialFbxField quickopenFilePath;
+		textField -e -tx "WT" ProjectTextField;
+		optionVar -sv NowProject (`optionVar -q WTFileName`);
+		changetoCeres ();
+		print ("开始定位！\n");
+	}
+}
+	//ceres定位AnBodyma
+global proc CeresAnBodyma () 
+{
+	string $Charactername = `textField -q -tx charactername`;
+	string $CeresRigtextField = `textField -q -tx CeresRigtextField`;
+	string $GameFacialFbxField = $CeresRigtextField + "/Origin/An/SK_Player_" + $Charactername + "_Origin_An_01.ma";
+	if ($Charactername == "")
+	{
+		error ("请载入角色数据！\n");
+	}else
+	{
+		textField -e -tx $GameFacialFbxField quickopenFilePath;
+		textField -e -tx "WT" ProjectTextField;
+		optionVar -sv NowProject (`optionVar -q WTFileName`);
+		changetoCeres ();
+		print ("开始定位！\n");
+	}
+}
+
+global proc CopyFileToPre () 
+{
+	string $WTFileName = `optionVar -q WTFileName`;
+	string $Charactername = `textField -q -tx charactername`;
+	string $Characternum = `textField -q -tx characternum`;
+	string $CeresRigtextField = `textField -q -tx CeresRigtextField`;
+	string $AimPreFilePath = "Z:/WT/WT_maya/scenes/Rig/Player/" + $Characternum;
+	//老版命名格式文件
+	string $PreOldFilePaths[] = {
+		$WTFileName + $CeresRigtextField + "/Origin/PV/SK_Player_" + $Charactername + "_White_Origin_Facial_PV_01.ma",
+		$WTFileName + $CeresRigtextField + "/Origin/An/SK_Player_" + $Charactername + "_White_Origin_Facial_An_01.dna",
+		$WTFileName + $CeresRigtextField + "/Origin/An/SK_Player_" + $Charactername + "_White_Origin_An_01.fbx",
+		$WTFileName + $CeresRigtextField + "/Origin/An/SK_Player_" + $Charactername + "_White_Origin_An_01.ma"
+	};
+
+	//新版命名格式文件
+	string $PreFilePaths[] = {
+		$WTFileName + $CeresRigtextField + "/Origin/PV/SK_Player_" + $Charactername + "_Origin_Facial_PV_01.ma",
+		$WTFileName + $CeresRigtextField + "/Origin/An/SK_Player_" + $Charactername + "_Origin_Facial_An_01.dna",
+		$WTFileName + $CeresRigtextField + "/Origin/An/SK_Player_" + $Charactername + "_Origin_An_01.fbx",
+		$WTFileName + $CeresRigtextField + "/Origin/An/SK_Player_" + $Charactername + "_Origin_An_01.ma"
+	};
+
+	if ($Charactername == "")
+	{
+		error ("请载入角色数据！\n");
+	}else
+	{
+		string $FilePath = `textField -q -tx errorlog`;
+		int $existsPath = `file -exists -q $FilePath`;
+		if (!$existsPath) {
+			system("mkdir \"" + $FilePath + "\"");
+			warning("当前文件路径已创建并打开\n");
+		}
+		//检查拷贝的文件是否存在本地文件
+		int $RunKey = 1;
+		for ($i = 0 ; $i < size($PreFilePaths); $i++)
+		{
+			int $existsNewField = `file -exists -q $PreFilePaths[$i]`;
+			int $existsOldField = `file -exists -q $PreOldFilePaths[$i]`;
+			if (!$existsNewField && !$existsOldField)
+			{
+				$RunKey = 0;
+				warning("本地未存在 " + $PreFilePaths[$i] + "或" + $PreOldFilePaths[$i] + "\n");
+			}else
+			{
+				continue;
+			}
+		}
+		
+		if ($RunKey == 1){
+			for ($i = 0 ; $i < size($PreFilePaths); $i++)
+			{
+				int $existsNewField = `file -exists -q $PreFilePaths[$i]`;
+				if (!$existsNewField)
+				{
+					$PreOldFilePaths[$i] = toNativePath($PreOldFilePaths[$i]);
+					$AimPreFilePath = toNativePath($AimPreFilePath);
+					system("copy \"" + $PreOldFilePaths[$i] + "\" \"" + $AimPreFilePath + "\"");
+				}else
+				{
+					$PreFilePaths[$i] = toNativePath($PreFilePaths[$i]);
+					$AimPreFilePath = toNativePath($AimPreFilePath);
+					system("copy \"" + $PreFilePaths[$i] + "\" \"" + $AimPreFilePath + "\"");
+				}
+			}
+			print ("成功拷贝至" + $FilePath + "\n");
+		}
+	}
+}
+
+global proc openfilepath () 
+{
+	string $FilePath = `textField -q -tx errorlog`;
+	int $existsPath = `file -exists -q $FilePath`;
+	if (!$existsPath) {
+		system("mkdir \"" + $FilePath + "\"");
+		system("explorer \"" + $FilePath + "\"");
+		warning("当前文件路径已创建路径并打开\n");
+	} else {
+		system("explorer \"" + $FilePath + "\"");
+		print("打开预设文件路径\n");
+	}
+}
+
+global proc flush () 
+{
+	string $Characternum = `textField -q -tx characternum`;
+	string $FilePath = "Z:\\WT\\WT_maya\\scenes\\Rig\\Player\\" + $Characternum;
+	textField -e -tx $FilePath errorlog; 
+	print ("刷新日志路径完成！\n");
+}
+
+global proc MakeCheckBoxFile()  
+{ 
+	string $Characterfilename;
+	string $Characternum = `textField -q -tx characternum`;
+	string $Charactername = `textField -q -tx charactername`;
+	int $StartKey = 1;
+	string $AimPreFilePathWin = "Z:\\WT\\WT_maya\\scenes\\Rig\\Player\\" + $Characternum;
+	string $AimPreFilePath = "Z:/WT/WT_maya/scenes/Rig/Player/" + $Characternum;
+	string $SaveFacialAnMa = "Z:\\WT\\WT_maya\\scenes\\Rig\\Player\\" + $Characternum + "\\SK_Player_" + $Charactername + "_Origin_Facial_An_01.ma";
+	string $SaveBodyWithFacialAnMa = "Z:\\WT\\WT_maya\\scenes\\Rig\\Player\\" + $Characternum + "\\SK_Player_" + $Charactername + "_Origin_BodyWithFacial_An_01.ma";
+	$FacialKey = `checkBox -q -v FacialcheckBox`;
+	$BodyWithFacialKey = `checkBox -q -v BodyWithFacialcheckBox`;
+
+	//老版命名格式文件
+	string $PreOldFilePaths[] = {
+		"SK_Player_" + $Charactername + "_White_Origin_Facial_PV_01.ma",
+		"SK_Player_" + $Charactername + "_White_Origin_Facial_An_01.dna",
+		"SK_Player_" + $Charactername + "_White_Origin_An_01.fbx",
+		"SK_Player_" + $Charactername + "_White_Origin_An_01.ma"
+	};
+	string $fullOldPaths[];
+	for ($i = 0; $i < size($PreOldFilePaths); $i++) {
+		$fullOldPaths[$i] = $AimPreFilePath + "/" + $PreOldFilePaths[$i];
+	}
+
+	//新版命名格式文件
+	string $PreFilePaths[] = {
+		"SK_Player_" + $Charactername + "_Origin_Facial_PV_01.ma",
+		"SK_Player_" + $Charactername + "_Origin_Facial_An_01.dna",
+		"SK_Player_" + $Charactername + "_Origin_An_01.fbx",
+		"SK_Player_" + $Charactername + "_Origin_An_01.ma"
+	};
+	string $fullPaths[];
+	for ($i = 0; $i < size($PreFilePaths); $i++) {
+		$fullPaths[$i] = $AimPreFilePath + "/" + $PreFilePaths[$i];
+	}
+
+	//检测角色对应路径是否存在并创建
+	int $existsPath = `file -exists -q $AimPreFilePathWin`;
+	if (!$existsPath) {
+		system("mkdir \"" + $AimPreFilePathWin + "\"");
+		system("explorer \"" + $AimPreFilePathWin + "\"");
+	} else {
+		system("explorer \"" + $AimPreFilePathWin + "\"");
+	}
+
+	//检查预备文件是否存在
+	for ($i = 0; $i < size($fullPaths); $i++) {
+		int $existsOldNameFile = `file -exists -q $fullOldPaths[$i]`;
+		int $existsNewNameFile = `file -exists -q $fullPaths[$i]`;
+		if (!$existsNewNameFile && !$existsOldNameFile) {
+			warning($PreOldFilePaths[$i] + " 或 " + $PreFilePaths[$i] + " 文件不存在，请从 Ceres 获取该文件并拷贝于 " + $AimPreFilePath + "\n");
+			$StartKey = 0;
+		}
+	}
+	
+	//
+	if ($StartKey == 1)
+	{
+		if ($FacialKey == 1)
+		{
+			//创建一个新场景
+			file -f -new;
+			
+			//不带名称空间打开PVFacialMa文件
+			int $existsOldNamePVFacialMa = `file -exists -q $fullOldPaths[0]`;
+			if (!$existsOldNamePVFacialMa) {
+				file -open -options "v=0;" $fullPaths[0];
+			} else {
+				file -open -options "v=0;" $fullOldPaths[0];
+			}
+			
+			//设置场景Y轴朝上
+			upAxis -ax y -rv;
+			//设置关节旋转值
+			setAttr "UnrealRoot.jointOrientX" -90;
+			//居中场景
+			viewSet -animate 0 -home;
+			viewFit -animate 0 -all;
+			
+			//导入dna文件
+			int $existsOldNameDNA = `file -exists -q $fullOldPaths[1]`;
+			if (!$existsOldNameDNA) {
+				python ("import sys\n" + "path_ = 'D:/Backup/Documents/Megascans Library/support/plugins/maya/7.2/MSLiveLink'\n" + "if path_ not in sys.path:" + "sys.path.append( path_ )\n" + "from DHI.RigSetup import RigBuilder\n" + "builder = RigBuilder()\n" + "builder.build( '" + $fullPaths[1] + "' )");
+			} else {
+				python ("import sys\n" + "path_ = 'D:/Backup/Documents/Megascans Library/support/plugins/maya/7.2/MSLiveLink'\n" + "if path_ not in sys.path:" + "sys.path.append( path_ )\n" + "from DHI.RigSetup import RigBuilder\n" + "builder = RigBuilder()\n" + "builder.build( '" + $fullOldPaths[1] + "' )");
+			}
+
+			//对导入dna数据产生的对象进行打组
+			select -cl;
+			select -r GRP_faceGUI GRP_C_eyesAim LOC_C_eyeDriver L_lookDirection R_lookDirection L_lookDirStartHandle L_lookDirEndHandle R_lookDirStartHandle R_lookDirEndHandle;
+			group -w -name "DNA_Group";
+
+			//获取Head_M的世界坐标并将其数据设置到CTRL_faceGUI
+			vector $Head_MworldPos = `xform -q -ws -t Head_M`;
+			setAttr CTRL_faceGUI.t 50 ($Head_MworldPos.y) ($Head_MworldPos.z);
+			
+			//添加PV和LOD的显示层
+			select -cl;
+			select -r LOD_PV;
+			createDisplayLayer -name "PV" -number 1;
+			select -cl;
+			select -r ($Charactername + "_LOD");
+			createDisplayLayer -name "LOD" -number 2;
+
+			//保存文件
+			file -force -pr -typ "mayaAscii" -ea $SaveFacialAnMa;
+		}
+
+		if ($BodyWithFacialKey == 1)
+		{
+			//创建一个新场景
+			file -f -new;
+
+			//带名称空间引用刚制作的ma文件
+			string $FacialAnNamespace = $Charactername + "_Facial_An";
+			file -reference -namespace $FacialAnNamespace $SaveFacialAnMa;
+			
+			//不带名称空间引用动捕文件
+			int $existsANBodyFbx = `file -exists -q $fullOldPaths[2]`;
+			if (!$existsANBodyFbx) {
+				file -reference -namespace ":" $fullPaths[2];
+			} else {
+				file -reference -namespace ":" $fullOldPaths[2];
+			}
+
+			//带名称空间引用ANBodyMa
+			int $existsANBodyMa = `file -exists -q $fullOldPaths[3]`;
+			if (!$existsANBodyMa) {
+				file -reference -namespace "" $fullPaths[3];
+			} else {
+				file -reference -namespace "" $fullOldPaths[3];
+			}
+			
+			//选择所有模型对象
+			select `ls -type mesh`;
+			//取消选择除角色An版fbx文件的所有模型对象
+			string $selection1[] = `ls -sl`;
+			for ($i = 0; $i < size($selection1); $i++)
+			{
+				if(`gmatch $selection1[$i] ("*:*")` != 0) 
+				{
+					select -d $selection1[$i];
+				}
+			}
+			$selection1 = `ls -sl`;
+			//选择模型对象而不是mesh节点
+			string $selection1mesh[] = `listRelatives -p  $selection1`;
+			select $selection1mesh;
+			//隐藏选定对象
+			hide;
+
+			//开始执行约束
+			OnlyRunConstrain();
+			
+			//保存文件
+			file -force -pr -typ "mayaAscii" -ea $SaveBodyWithFacialAnMa;
+			
+			//创建一个新场景
+			//file -f -new;
+			//
+			//file -open -options "v=0;" $SaveBodyWithFacialAnMa;
+		}
+	}
+}
+
+global proc OnlyRunConstrain()  
+{
+	string $Characternum = `textField -q -tx characternum`;
+	string $Charactername = `textField -q -tx charactername`;
+	string $NewBodyAnMaPaths = "Z:/WT/WT_maya/scenes/Rig/Player/" + $Characternum + "/SK_Player_" + $Charactername + "_Origin_An_01.ma";
+	int $existsNameSpace = `file -exists -q $NewBodyAnMaPaths`;
+	string $NameSpace;
+	if (!$existsNameSpace) {	
+		$NameSpace = "SK_Player_" + $Charactername + "_White_Origin_An_01:";
+	}else{
+		$NameSpace = "SK_Player_" + $Charactername + "_Origin_An_01:";
+	}
+	//创建日志文件
+	string $errorFileCreate = "Z:\\WT\\WT_maya\\scenes\\Rig\\Player\\" + $Characternum + "\\Error_Log.txt";
+	int $existslog = `file -exists -q $errorFileCreate`;
+	if ($existslog) {
+		//清空日志内容
+		$fileIdC=`fopen $errorFileCreate "w"`;
+		fprint $fileIdC "";
+		fclose $fileIdC;
+	}
+	//写入日志
+	$fileId=`fopen $errorFileCreate "a"`;
+
+	//“角色An版fbx文件”的骨骼 批量约束 “角色An版ma文件”的控制器
+	string $jeuseanfbxboneSpace = "";
+	string $jeuseanmactrlSpace = $NameSpace;
+	string $jeuseanfbxbone[];
+	string $jeuseanmactrl[];
+	int $ConstrainBodyControlKey = 1;
+	
+	for ($i = 0; $i < 70; $i++)
+	{
+		$jeuseanfbxbone[$i] = `textField -q -tx ("sourceConstrain1" + $i)`;
+		$jeuseanmactrl[$i] = `textField -q -tx ("targetConstrain1" + $i)`;
+		string $parentsource = $jeuseanfbxboneSpace + $jeuseanfbxbone[$i];
+		string $parenttarget = $jeuseanmactrlSpace + $jeuseanmactrl[$i];
+		if ($jeuseanfbxbone[$i] == "" || $jeuseanmactrl[$i] == "")
+		{
+			continue;
+		}else {
+			if (objExists($parentsource)) 
+			{
+				print ("对象 " + $parentsource + " 存在。\n");
+			}else{
+				fprint $fileId ("对象 " + $parentsource + " 不存在。\n");
+				warning ("对象 " + $parentsource + " 不存在。\n");
+				$ConstrainBodyControlKey = 0;
+			}
+			if (objExists($parenttarget)) 
+			{
+				print ("对象 " + $parenttarget + " 存在。\n");
+			}else{
+				fprint $fileId ("对象 " + $parenttarget + " 不存在。\n");
+				warning ("对象 " + $parenttarget + " 不存在。\n");
+				$ConstrainBodyControlKey = 0;
+			}
+		}
+	}
+
+	//条件满足开始执行约束
+	if ($ConstrainBodyControlKey ==1)
+	{
+		for ($i = 0; $i < 70; $i++)
+		{
+			$jeuseanfbxbone[$i] = `textField -q -tx ("sourceConstrain1" + $i)`;
+			$jeuseanmactrl[$i] = `textField -q -tx ("targetConstrain1" + $i)`;
+			string $parentsource = $jeuseanfbxboneSpace + $jeuseanfbxbone[$i];
+			string $parenttarget = $jeuseanmactrlSpace + $jeuseanmactrl[$i];
+			if ($jeuseanfbxbone[$i] == "" || $jeuseanmactrl[$i] == "")
+			{
+				continue;
+			}else {
+				if ($jeuseanfbxbone[$i] != "" && $jeuseanmactrl[$i] != "")
+				{
+					parentConstraint -mo -w 1.0 $parentsource $parenttarget;
+				}
+			}
+			print ("成功执行约束：" + $parentsource + "和" + $parenttarget + "\n");
+		}
+	}
+
+	//“角色An版ma文件”的骨骼 批量约束 “第2步制作的ma文件”的骨骼
+	 
+	string $jeuseanmaboneSpace = $NameSpace;
+	//string $headmaboneSpace = "SK_Player_" + $Charactername + "_Origin_Facial_An_01:";
+	string $headmaboneSpace = $Charactername + "_Facial_An:";
+	string $jeuseanmabone[];
+	string $headmabone[];
+	int $ConstrainBodyToFacialKey = 1;
+	 
+	for ($i = 0; $i < 30; $i++) 
+	{
+		$jeuseanmabone[$i] = `textField -q -tx ("sourceConstrain2" + $i)`;
+		$headmabone[$i] = `textField -q -tx ("targetConstrain2" + $i)`;
+		string $parentsource1 = $jeuseanmaboneSpace + $jeuseanmabone[$i];
+		string $parenttarget1 = $headmaboneSpace + $headmabone[$i];
+		if ($jeuseanmabone[$i] == "" || $headmabone[$i] == "")
+		{
+			continue;
+		}else {
+			if (objExists($parentsource1)) 
+			{
+				print ("对象 " + $parentsource1 + " 存在。\n");
+			}else{
+				fprint $fileId ("对象 " + $parentsource1 + " 不存在。\n");
+				warning ("对象 " + $parentsource1 + " 不存在。\n");
+				$ConstrainBodyToFacialKey = 0;
+			}
+			if (objExists($parenttarget1)) 
+			{
+				print ("对象 " + $parenttarget1 + " 存在。\n");
+			}else{
+				fprint $fileId ("对象 " + $parenttarget1 + " 不存在。\n");
+				warning ("对象 " + $parenttarget1 + " 不存在。\n");
+				$ConstrainBodyToFacialKey = 0;
+			}
+		}
+	}
+	fclose $fileId;//写出完日志
+
+	//条件满足开始执行约束
+	if ($ConstrainBodyToFacialKey == 1)
+	{
+		for ($i = 0; $i < 30; $i++) 
+		{
+			$jeuseanmabone[$i] = `textField -q -tx ("sourceConstrain2" + $i)`;
+			$headmabone[$i] = `textField -q -tx ("targetConstrain2" + $i)`;
+			string $parentsource1 = $jeuseanmaboneSpace + $jeuseanmabone[$i];
+			string $parenttarget1 = $headmaboneSpace + $headmabone[$i];
+			if ($jeuseanmabone[$i] == "" || $headmabone[$i] == "")
+			{
+				continue;
+			}else {
+				if ($jeuseanfbxbone[$i] != "" && $jeuseanmactrl[$i] != "")
+				{
+					parentConstraint -mo -w 1.0 $parentsource1 $parenttarget1;
+				}
+			}
+			print ("成功执行约束：" + $parentsource1 + "和" + $parenttarget1 + "\n");
+		}
+	}
+}
+
+WTAutoFacialFileMake;

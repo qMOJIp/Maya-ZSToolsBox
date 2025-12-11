@@ -1,0 +1,75 @@
+global proc RenameWhichSelected()
+{
+	if (`window -exists "RenameWhichSelectedWindow"`)
+	{
+		deleteUI -window "RenameWhichSelectedWindow";
+	}
+	window -title "按选择顺序重命名" -h 50 -w 200 -rtf 1 -s 0 -tlb 1 RenameWhichSelectedWindow;
+	columnLayout -columnAttach both 5 -adjustableColumn true -p RenameWhichSelectedWindow RenameWhichSelectedcolumnLayout;
+	separator -h 5 -style "none" -p RenameWhichSelectedcolumnLayout;
+
+	setParent RenameWhichSelectedWindow;
+	rowLayout -nc 2 -columnWidth2 60 80;
+		text -label ("添加前缀：");
+		textField -w 130 -tx "" RenamePrefix;
+
+	setParent RenameWhichSelectedWindow;
+	rowLayout -nc 2 -columnWidth2 60 80;
+		text -label ("添加后缀：");
+		textField -w 130 -tx "" RenameSuffix;
+	button -c "RenameSelected" -label "执行" -p RenameWhichSelectedcolumnLayout;
+	separator -h 5 -style "none" -p RenameWhichSelectedcolumnLayout;
+
+	showWindow RenameWhichSelectedWindow;
+}
+
+global proc RenameSelected()
+{
+	string $Selections[] = `ls -l -os`;
+	string $Prefix = `textField -q -tx RenamePrefix`;
+	string $Suffix = `textField -q -tx RenameSuffix`;
+	string $AddZero_1;
+	string $AddZero_2;
+	string $AddZero_3;
+	if (size($Selections)<10)
+	{
+		$AddZero_1 = "";
+	}else if (size($Selections)>9 && size($Selections)<100)
+	{
+		$AddZero_1 = "0";
+	}else if (size($Selections)>99 && size($Selections)<1000)
+	{
+		$AddZero_1 = "00";
+		$AddZero_2 = "0";
+	}else{
+		$AddZero_1 = "000";
+		$AddZero_2 = "00";
+		$AddZero_3 = "0";
+	}
+	for ($i = 1;$i < size($Selections)+1;$i++) {
+		if ($i<10)
+		{
+			string $num = $i;
+			$Selections[$i-1] = strip($Selections[$i-1]);
+			string $ALLName = $Prefix + $AddZero_1 + $num + $Suffix;
+			rename $Selections[$i-1] $ALLName;
+			$Selections = `ls -l -os`;
+		}else if ($i>9 && $i<100)
+		{
+			string $num = $i;
+			$Selections[$i-1] = strip($Selections[$i-1]);
+			string $ALLName = $Prefix + $AddZero_2 + $num + $Suffix;
+			rename $Selections[$i-1] $ALLName;
+			$Selections = `ls -l -os`;
+		}else if ($i>99 && $i<1000)
+		{
+			string $num = $i;
+			$Selections[$i-1] = strip($Selections[$i-1]);
+			string $ALLName = $Prefix + $AddZero_3 + $num + $Suffix;
+			rename $Selections[$i-1] $ALLName;
+			$Selections = `ls -l -os`;
+		}
+	}
+}
+
+RenameWhichSelected;

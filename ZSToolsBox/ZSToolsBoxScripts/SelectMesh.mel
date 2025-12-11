@@ -1,0 +1,3 @@
+string $SelectMesh[] = `ls -g -ap -ni `;
+$SelectMesh = `listRelatives -f -p $SelectMesh`;
+select -r $SelectMesh;

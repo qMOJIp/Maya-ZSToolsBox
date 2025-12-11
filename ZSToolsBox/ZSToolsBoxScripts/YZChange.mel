@@ -1,0 +1,10 @@
+string $UpAxis = `upAxis -q -ax`;
+if ($UpAxis == "y"){
+	upAxis -ax z -rv;
+	viewSet -animate 0 -home;
+	viewFit -animate 0 -all;
+}else{
+	upAxis -ax y -rv;
+	viewSet -animate 0 -home;
+	viewFit -animate 0 -all;
+}

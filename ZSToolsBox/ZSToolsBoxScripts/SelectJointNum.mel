@@ -1,0 +1,3 @@
+string $SelectJoint[] = `ls -type joint `;
+string $JointSelections[] = `ls -sl -type joint`;
+print ("选择对象中骨骼数：" + size($JointSelections) + "\t场景中总骨骼数：" + size($SelectJoint));
