@@ -1,0 +1,113 @@
+// 窗口
+global proc ImportExportKeyframesWaiBuWindow()
+{
+	// 如果窗口已经存在，则删除它
+	if (`window -exists "ImportExportKeyframesWaiBuWindow"`) {
+		deleteUI "ImportExportKeyframesWaiBuWindow";
+	}
+	window -title "关键帧动画导入导出" -h 35 -w 150 -s 0 -tlb 1 ImportExportKeyframesWaiBuWindow;
+	columnLayout -columnAttach both 5 -adjustableColumn true ImportExportKeyframesWaiBucolumnLayout;
+		separator -h 5 -style "none";
+		button -h 25 -w 90 -c "ImportExportKeyPathWaiBu" -label "导入动画";
+		separator -h 5 -style "none";
+	showWindow "ImportExportKeyframesWaiBuWindow";
+}
+
+// 路径选择
+global proc ImportExportKeyPathWaiBu ()
+{
+	string $importfilePath = `fileDialog -title "导入关键帧数据" -directoryMask "/usr/u//*.json"`;
+	if ($importfilePath == "")
+	{
+		warning ("已取消导入！\n");
+	}else
+	{
+		ImportSelectedKeyframes ( $importfilePath );
+	}
+}
+// 关键帧导入
+global string $NowObjectName;
+global string $NowAttributeName;
+global proc ImportSelectedKeyframes ( string $JSONPath )
+{
+	global string $NowObjectName;
+	global string $NowAttributeName;
+	if (`filetest -e $JSONPath`)
+	{
+		string $EachJSONline[] = freadAllLines($JSONPath);
+		for ($JSONline in $EachJSONline)
+		{
+			if (`gmatch $JSONline "\"*\": ?"`)
+			{
+				string $AnimationName[];
+				tokenize $JSONline "\"" $AnimationName;
+				print ("动画数据：" + $AnimationName[0] + "\n");
+			}
+			if (`gmatch $JSONline "*\"name\"*"`)
+			{
+				string $ObjectName[];
+				tokenize $JSONline "\"" $ObjectName;
+				$NowObjectName = $ObjectName[3];
+				if (`objExists $NowObjectName`)
+				{
+					select -r $NowObjectName;
+				}
+				print ("\t对象：" + $ObjectName[3] + "\n");
+			}
+			if (`gmatch $JSONline "*\"keyframeData\"*"`)
+			{
+				continue;
+				//print ("加载关键帧信息！\n");
+			}
+			if (`gmatch $JSONline "*\"attribute\"*"`)
+			{
+				string $AttributeName[];
+				tokenize $JSONline "\"" $AttributeName;
+				$NowAttributeName = $AttributeName[3];
+				print ("\t\t属性：" + $AttributeName[3] + "\n");
+			}
+			if (`gmatch $JSONline "*\"curveType\"*"`)
+			{
+				string $CurveType[];
+				tokenize $JSONline "\"" $CurveType;
+				print ("\t\t类型：" + $CurveType[3] + "\n");
+			}
+			if (`gmatch $JSONline "*\"keyframeCount\"*"`)
+			{
+				string $Count[];
+				tokenize $JSONline ": ," $Count;
+				print ("\t\t帧数：" + $Count[1] + "\n");
+			}
+			if (`gmatch $JSONline "*\"keyframes\"*"`)
+			{
+				continue;
+				//print ("开始设置关键帧：\n");
+			}
+			if (`gmatch $JSONline "*\"message\"*"`)
+			{
+				print ("\t\t该对象没有关键帧\n");
+			}
+			if (`gmatch $JSONline "*\"index\"*"`)
+			{
+				if (`objExists $NowObjectName`)
+				{
+					string $IndexDate[];
+					tokenize $JSONline "\": ,}" $IndexDate;
+					print ("\t\t\t帧序：" + $IndexDate[2] + "\t");
+					print ("时间：" + $IndexDate[4] + "\t");
+					print ("数值：" + $IndexDate[6] + "\n");
+					float $KeyTime = $IndexDate[4];
+					float $KeyValue = $IndexDate[6];
+					setKeyframe -t $KeyTime -at $NowAttributeName -v $KeyValue $NowObjectName;
+				}else{
+					print ("\t\t\t缺失对象无效数据\n");
+				}
+			}
+		}
+	}else
+	{
+		error ("文件不存在！！！");
+	}
+}
+
+ImportExportKeyframesWaiBuWindow();

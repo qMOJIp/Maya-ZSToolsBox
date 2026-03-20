@@ -1,0 +1,712 @@
+//Author  :   LiuBen
+//Date    :   2016/12/05
+//Fix     :   2017/05/18 修正了pivot的层级关系。
+//Fix     :   2018/01/29 修改了创建基础控制器的层级及命名方式。
+//Fix     :   2018/11/13 修改了箭头圆的形状，添加了“创建loc”按钮。
+//Fix     :   2020/10/13 重新设计界面，增加了许多新功能。
+global proc bb_ctrlTool()
+{
+    if (`window -q -exists bb_CtrlToolWindow`) deleteUI bb_CtrlToolWindow;
+    window -title "控制器创建工具" bb_CtrlToolWindow;    
+        columnLayout -adjustableColumn true;
+            frameLayout -label "基本设置";
+                columnLayout;
+                    rowLayout -numberOfColumns 4 -columnWidth4 50 125 40 30 ;
+                        text -label "名称: ";
+                        textField -w 125 -text "Name" CtrlNameTF;
+                        text -label " 序列初:";
+                        intField -w 30 -minValue 0 -value 1 CtrlStartIF  ;
+                    setParent ..;
+                    rowLayout -numberOfColumns 2 -columnWidth2 50 200 ;
+                        text -label "层级: ";
+                        textField -w 200 -text "CtrlEnv,CtrlExp,CtrlDrv,CtrlP,Ctrl,CtrlS" CtrlGroupTF;
+                    setParent ..;
+                    rowLayout -numberOfColumns 2 -columnWidth2 50 200 ;
+                        text -label "调整层级: ";
+                        intSlider -w 200 -min 1 -max 5 -value 5 -step 1 -dc bb_CtrlTool_CtrlGroup bb_CtrlTool_CtrlGroupIS;
+                    setParent ..;
+                    rowLayout -numberOfColumns 4 -columnWidth4 53 55 55 60;
+                        text -label "添加属性: ";
+                        checkBox -label "pivots" -value 1 pivotsCB;
+                        checkBox -label "geoVis" -value 0 geoVisCB;
+                        button -l "隐藏/显示pivot" -bgc 0 0.3 0.45 -c bb_CtrlTool_visPivots;
+                    setParent ..;
+            frameLayout -label "颜色&形状";
+                columnLayout;
+                    rowLayout -numberOfColumns 2 -columnWidth2 200 50;
+                        colorIndexSliderGrp -w 200 -min 0 -max 32 -value 6 CtrlColorISG;
+                        button -l "改颜色" -w 50 -bgc 0 0.3 0.45 -c bb_CtrlTool_changeColor;
+                    setParent ..;
+                        rowColumnLayout -numberOfColumns 4 -columnWidth 1 60 -columnWidth 2 60 -columnWidth 3 60  -columnWidth 4 60;
+                            radioCollection CtrlShapeChoose;
+                                radioButton -label "球" CtrlShape_sphere;
+                                radioButton -label "立方体" CtrlShape_cube;
+                                radioButton -label "金字塔" CtrlShape_pyramid;
+                                radioButton -label "菱形" CtrlShape_rhombus;
+                                radioButton -label "圆柱" CtrlShape_cylinder;
+                                radioButton -label "圆环" CtrlShape_circle;
+                                radioButton -label "方块" CtrlShape_square;
+                                radioButton -label "三角" CtrlShape_triangle;
+                                radioButton -label "箭头" CtrlShape_arrowhead1;
+                                radioButton -label "2箭头" CtrlShape_arrowhead2;
+                                radioButton -label "2箭头圆" CtrlShape_arrowCircle1;
+                                radioButton -label "4箭头圆" CtrlShape_arrowCircle2;
+                                radioButton -label "十字" CtrlShape_cross;
+                                radioButton -label "弧90" CtrlShape_arc1;
+                                radioButton -label "弧270" CtrlShape_arc2;
+                                radioButton -label "loc" CtrlShape_loc;
+                            radioCollection -edit -select "CtrlShape_cube" CtrlShapeChoose;
+                    setParent ..;
+                    button -l "改形状" -w 252 -bgc 0 0.3 0.45 -c bb_CtrlTool_changeShape;
+                setParent ..;
+                frameLayout -label "处理方式";
+                    rowColumnLayout -numberOfColumns 3 -columnWidth 1 80 -columnWidth 2 80 -columnWidth 3 80;
+                        radioCollection bb_processModeChoose;
+                            radioButton -label "约束" processMode_constrain;
+                            radioButton -label "蒙皮" processMode_skin;
+                            radioButton -label "什么也不做" processMode_nothing;
+                        radioCollection -edit -select "processMode_nothing"  bb_processModeChoose;
+                    setParent ..;
+                setParent ..;    
+            frameLayout -label "其他";
+                columnLayout;
+                    rowLayout -numberOfColumns 2 -columnWidth2 173 75;
+                        optionMenu -w 173 -label "RotateOrder:" rotateOrderMenu;
+                            menuItem -label "xyz";
+                            menuItem -label "yzx";
+                            menuItem -label "zxy";
+                            menuItem -label "xzy";
+                            menuItem -label "yxz";
+                            menuItem -label "zyx";
+                        button -l "修改所有层级" -w 75 -c "bb_CtrlTool_fixExtra(3)";
+                    setParent ..;
+                    rowLayout -numberOfColumns 3 -columnWidth3 133 38 75 ;
+                        optionMenu -w 133 -label "控制器旋转:   " rotateMenu;
+                            menuItem -label "X";
+                            menuItem -label "Y";
+                            menuItem -label "Z";
+                        intField -w 38 -value 0 bb_CtrlTool_roIF;
+                            popupMenu;
+                                menuItem -label "0" -c "intField -e -value 0 bb_CtrlTool_roIF;";
+                                menuItem -label "90" -c "intField -e -value 90 bb_CtrlTool_roIF;";
+                                menuItem -label "-90" -c "intField -e -value -90 bb_CtrlTool_roIF;";
+                                menuItem -label "180" -c "intField -e -value 180 bb_CtrlTool_roIF;";
+                                menuItem -label "-180" -c "intField -e -value -180 bb_CtrlTool_roIF;";
+                        button -l "旋转" -w 75 -bgc 0.5 0.5 0.5 -c "bb_CtrlTool_RoScaleCtrlShape(0)";
+                    setParent ..;
+                    rowLayout -numberOfColumns 3 -columnWidth3 113 58 75 ;
+                        floatSlider -w 113 -value 1 -step .01 -min 0.001 -max 2 -dc bb_CtrlTool_scale bb_CtrlTool_scaleFS;
+                        floatField -w 58 -value 1 -precision 3 bb_CtrlTool_scaleFF;
+                            popupMenu;
+                                menuItem -label "1" -c "floatSlider -e -max 2 -value 1 bb_CtrlTool_scaleFS;bb_CtrlTool_scale";
+                                menuItem -label "10" -c "floatSlider -e -max 20 -value 10 bb_CtrlTool_scaleFS;bb_CtrlTool_scale";
+                                menuItem -label "20" -c "floatSlider -e -max 40 -value 20 bb_CtrlTool_scaleFS;bb_CtrlTool_scale";
+                        button -l "缩放" -w 75 -bgc 0.5 0.5 0.5 -c "bb_CtrlTool_RoScaleCtrlShape(1)";
+                    setParent ..;
+                    rowLayout -numberOfColumns 3 -columnWidth3 70 101 75;
+                        checkBox -label "加入骨骼：" -value 0 joinJointCB;
+                        optionMenu -w 101 -label "" jointMenu;
+                            menuItem -label "约束";
+                            menuItem -label "父子关系";
+                        button -l "添加骨骼" -w 75 -c "bb_CtrlTool_fixExtra(1)";
+                    setParent ..;
+                    rowLayout -numberOfColumns 2 -columnWidth2 173 75;
+                        checkBox -label "创建驱动组" -value 0 createDrv1CB;
+                        button -l "创建驱动组" -w 75 -bgc 0.5 0.5 0.5 -c "bb_CtrlTool_fixExtra(2)";
+                    setParent ..;
+                    rowLayout -numberOfColumns 3 -columnWidth3 40 131 75;
+                        text -l "后缀：";
+                        textField -text "Grp" -w 130 bb_CtrlTool_groupObjSuffix;
+                        popupMenu;
+                            menuItem -label "_Grp" -c "textField -e -text _Grp bb_CtrlTool_groupObjSuffix;";
+                            menuItem -label "Grp" -c "textField -e -text Grp bb_CtrlTool_groupObjSuffix;";
+                        button -l "打组所选物体" -w 75 -c bb_CtrlTool_groupObj;
+                    setParent ..;
+                    rowColumnLayout -numberOfColumns 2 -columnWidth 1 125 -columnWidth 2 125;
+                        button -l "合并Shape" -bgc 0.5 0.5 0.5 -c bb_CtrlTool_combineShape;
+                        button -l "添加Pivots" -c bb_CtrlTool_selAddPivots;
+                        button -l "创建Reference" -c "spaceLocator -p 0 0 0 -n Reference;";
+                        button -l "创建基本控制器" -bgc 0.5 0.5 0.5 -c bb_CtrlTool_porpsCtrlApply;
+                    setParent ..;
+                    button -l "创建" -w 252 -h 40 -bgc 0.1 0.1 0.1 -c bb_CtrlTool_apply;
+                setParent ..;        
+    showWindow bb_CtrlToolWindow;
+}
+bb_ctrlTool;
+
+global proc bb_CtrlTool_CtrlGroup()
+{
+    int $CtrlGroupNum = `intSlider -q -value bb_CtrlTool_CtrlGroupIS`;
+    if($CtrlGroupNum == 5)
+         textField -e -text "CtrlEnv,CtrlExp,CtrlDrv,CtrlP,Ctrl,CtrlS" CtrlGroupTF;
+    if($CtrlGroupNum == 4)
+         textField -e -text "CtrlEnv,CtrlDrv,CtrlP,Ctrl,CtrlS" CtrlGroupTF;
+    if($CtrlGroupNum == 3)
+         textField -e -text "CtrlEnv,CtrlP,Ctrl,CtrlS" CtrlGroupTF;
+    if($CtrlGroupNum == 2)
+         textField -e -text "CtrlEnv,CtrlP,Ctrl" CtrlGroupTF;
+    if($CtrlGroupNum == 1)
+         textField -e -text "CtrlEnv,Ctrl" CtrlGroupTF;
+}
+global proc bb_CtrlTool_scale()
+{
+    float $scaleValue = `floatSlider -q -value bb_CtrlTool_scaleFS`;
+    floatField -e -value $scaleValue bb_CtrlTool_scaleFF;
+}
+
+global proc bb_CtrlTool_apply()
+{
+    string $CtrlName = `textField -q -text CtrlNameTF`;
+    int $createDrv1 = `checkBox -q -value createDrv1CB`;
+    int $joinJoint = `checkBox -q -value joinJointCB`;
+    int $start = `intField -q -value CtrlStartIF`;
+    string $sel[] = `ls -sl`;
+    if(size($sel)>1){
+        int $Num = size($sel) + $start;
+        string $numStr = $Num;
+        int $padding = 2;
+        if(sizeBytes($numStr)>2)
+            $padding = sizeBytes($numStr);
+        
+        for($i=0;$i<size($sel);$i++){
+            int $n = $i + $start;
+            string $padStr = "";
+            for ($p=1; $p < $padding; ++$p){
+				if ($n < pow(10, $p))
+					$padStr += "0";
+		    }
+		    bb_CtrlTool_createWholeCtrl($CtrlName+$padStr+$n);
+		    bb_CtrlTool_processMode(($CtrlName+$padStr+$n),$sel[$i]);
+		    if($createDrv1 == 1)
+		        bb_CtrlTool_addDrv1Apply($CtrlName+$padStr+$n);
+        }    	     
+    }
+    else{
+        bb_CtrlTool_createWholeCtrl($CtrlName);
+        if(size($sel))
+            bb_CtrlTool_processMode($CtrlName,$sel[0]);
+        else if(!size($sel) && $joinJoint == 1)
+            bb_CtrlTool_addJointApply($CtrlName);
+        if($createDrv1 == 1)
+		    bb_CtrlTool_addDrv1Apply($CtrlName);
+    }
+}
+//选择形状
+global proc bb_CtrlTool_createWholeCtrl(string $CtrlName)
+{
+    string $CtrlGroup = `textField -q -text CtrlGroupTF`;
+    string $CtrlSuffix = "Ctrl";
+    int $geoVis = `checkBox -q -value geoVisCB`;
+    int $pivots = `checkBox -q -value pivotsCB`;
+    int $CtrlColor = `colorIndexSliderGrp -q -value CtrlColorISG`;
+    string $CtrlShape = `radioCollection -q -select CtrlShapeChoose`;
+    int $rotateOrder = `optionMenu -q -select rotateOrderMenu`;
+    
+    string $CtrlGroupArray[] = stringToStringArray($CtrlGroup, ",");
+    string $CtrlP;
+    string $CtrlS;
+    string $Ctrl;
+
+    for($i=0;$i<size($CtrlGroupArray);$i++){
+        if($CtrlGroupArray[$i]!=$CtrlSuffix){
+            createNode "transform" -n ($CtrlName+"_"+$CtrlGroupArray[$i]); 
+        }
+        else if($CtrlGroupArray[$i]==$CtrlSuffix){
+            if($i-1 > 0) $CtrlP = $CtrlName+"_"+$CtrlGroupArray[$i-1];
+            if(size($CtrlGroupArray[$i+1])) $CtrlS = $CtrlName+"_"+$CtrlGroupArray[$i+1];
+            $Ctrl = $CtrlName+"_"+$CtrlGroupArray[$i];
+            bb_CtrlTool_createShape($CtrlShape,$Ctrl); 
+            bb_CtrlTool_changeColorApply($Ctrl,$CtrlColor);  
+        }
+        setAttr ($CtrlName+"_"+$CtrlGroupArray[$i]+".rotateOrder") ($rotateOrder-1);
+        if($i>0){
+            parent ($CtrlName+"_"+$CtrlGroupArray[$i]) ($CtrlName+"_"+$CtrlGroupArray[$i-1]);
+        }
+    }
+    if($pivots == 1){
+        bb_CtrlTool_addPivots($Ctrl);
+        if($CtrlP != "") bb_CtrlTool_addPivots($CtrlP);
+        if($CtrlS != ""){
+            reorder -front $CtrlS;
+            bb_CtrlTool_addPivots($CtrlS);
+        }
+    }
+    if($geoVis == 1){
+        string $pivotExists[] = `listAttr -string "pivots" $Ctrl`;
+        if(size($pivotExists)==0){
+            if(!`objExists ($Ctrl+"._______________________________________________________________________")`){
+                addAttr -ln "_______________________________________________________________________"  -at "enum" -en "extra:"  $Ctrl;
+                setAttr -e -keyable true -lock true ($Ctrl+"._______________________________________________________________________");    
+            }
+        }
+        addAttr -ln "geoVis"  -at long  -min 0 -max 1 -dv 1 $Ctrl;
+        setAttr -e -keyable true ($Ctrl+".geoVis");
+    }
+}
+//创建pivot
+global proc bb_CtrlTool_selAddPivots()
+{
+    string $sel[] = `ls -sl`;
+    for($i=0;$i<size($sel);$i++){
+        if(`nodeType $sel[$i]` == "transform")
+            bb_CtrlTool_addPivots($sel[$i]);
+    }
+}
+
+global proc bb_CtrlTool_addPivots(string $transform)
+{
+    setAttr -lock true -keyable false -channelBox false ($transform+".v");
+    if(!`objExists ($transform+"._______________________________________________________________________")`){
+        addAttr -ln "_______________________________________________________________________"  -at "enum" -en "extra:"  $transform;
+        setAttr -e -keyable true -lock true ($transform+"._______________________________________________________________________");
+    }
+    if(!`objExists ($transform+".pivots")`){
+        addAttr -ln "pivots"  -at long  -min 0 -max 1 -dv 1 $transform;
+        setAttr -e -keyable true ($transform+".pivots");
+    }
+    bb_CtrlTool_createShape("CtrlShape_loc",($transform+"Pivot"));
+    bb_CtrlTool_changeColorApply(($transform+"Pivot"),23);
+    parent ($transform+"Pivot") $transform;
+    setAttr ($transform+"Pivot.t") 0 0 0;
+    connectAttr -f ($transform+".pivots") ($transform+"Pivot.v");
+    setAttr -lock true -keyable false -channelBox false ($transform+"Pivot.v");
+    setAttr -lock true -keyable false -channelBox false ($transform+"Pivot.rx");
+    setAttr -lock true -keyable false -channelBox false ($transform+"Pivot.ry");
+    setAttr -lock true -keyable false -channelBox false ($transform+"Pivot.rz");
+    setAttr -lock true -keyable false -channelBox false ($transform+"Pivot.sx");
+    setAttr -lock true -keyable false -channelBox false ($transform+"Pivot.sy");
+    setAttr -lock true -keyable false -channelBox false ($transform+"Pivot.sz");
+    connectAttr -f ($transform+"Pivot.translate") ($transform+".scalePivot");
+    connectAttr -f ($transform+"Pivot.translate") ($transform+".rotatePivot");
+}
+
+//选中改颜色
+global proc bb_CtrlTool_changeColor()
+{
+    int $CtrlColor = `colorIndexSliderGrp -q -value CtrlColorISG`;
+    string $sel[] = `ls -sl`;
+    for($i=0;$i<size($sel);$i++){
+        bb_CtrlTool_changeColorApply($sel[$i],$CtrlColor);
+    }
+}
+
+
+//改颜色执行
+global proc bb_CtrlTool_changeColorApply(string $CtrlName,int $color)
+{
+    string $shape[] = `listRelatives -shapes $CtrlName`;
+    if(size($shape)>0){
+        for($i=0;$i<size($shape);$i++){
+            setAttr ($shape[$i]+".overrideEnabled") 1;
+            setAttr ($shape[$i]+".overrideColor") ($color-1);
+        }   
+    } 
+}
+
+//处理方式
+global proc bb_CtrlTool_processMode(string $CtrlName,string $obj)
+{
+    string $mode = `radioCollection -q -select bb_processModeChoose`;
+    string $CtrlGroup = `textField -q -text CtrlGroupTF`;
+    string $CtrlGroupArray[] = stringToStringArray($CtrlGroup, ",");
+    string $CtrlEnv = $CtrlName + "_" + $CtrlGroupArray[0];
+    string $conNode[] = `parentConstraint -weight 1 $obj $CtrlEnv`;
+    delete $conNode;
+    string $CtrlS = $CtrlName + "_" + $CtrlGroupArray[size($CtrlGroupArray)-1];
+    int $joinJoint = `checkBox -q -value joinJointCB`;
+    if($joinJoint == 1){
+        bb_CtrlTool_addJointApply($CtrlName);
+    }
+    string $target = $obj;
+    if($mode == "processMode_constrain"){
+        setAttr -lock false ($target+".tx");
+        setAttr -lock false ($target+".ty");
+        setAttr -lock false ($target+".tz");
+        setAttr -lock false ($target+".rx");
+        setAttr -lock false ($target+".ry");
+        setAttr -lock false ($target+".rz");
+        setAttr -lock false ($target+".sx");
+        setAttr -lock false ($target+".sy");
+        setAttr -lock false ($target+".sz");
+        parentConstraint -mo -weight 1 $CtrlS $target;
+        scaleConstraint -mo -weight 1 $CtrlS $target;
+    }
+    else if($mode == "processMode_skin"){
+        if(!`objExists ($CtrlName+"_Joint")`)
+            bb_CtrlTool_addJointApply($CtrlName);
+        select -r ($CtrlName+"_Joint");
+        select -tgl $target;
+        SmoothBindSkin;
+    }
+}
+
+//选择打组
+global proc bb_CtrlTool_groupObj()
+{
+    string $sel[] = `ls -sl`;
+    for($i=0;$i<size($sel);$i++){
+       bb_CtrlTool_groupObjApply($sel[$i]);
+    }
+}
+//打组物体执行
+global proc string bb_CtrlTool_groupObjApply(string $obj)
+{
+    string $objArray[] = stringToStringArray($obj, "|");
+    string $suffix = `textField -q -text bb_CtrlTool_groupObjSuffix`;
+    string $grpName = $objArray[size($objArray)-1] + $suffix;
+    createNode "transform" -n "bb_CtrlTool_group"; 
+    string $parentCon[] = `parentConstraint -weight 1 $obj "bb_CtrlTool_group"`;
+    string $scaleCon[] = `scaleConstraint -weight 1 $obj "bb_CtrlTool_group"`;
+    delete $parentCon;
+    delete $scaleCon;
+    
+    string $objParent[] = `listRelatives -fullPath -parent $obj`;
+    if(size($objParent)>0)
+        parent "bb_CtrlTool_group" $objParent[0];
+    parent $obj "bb_CtrlTool_group";
+    string $newGrpName = `rename "bb_CtrlTool_group" $grpName`;
+    print $newGrpName;
+    return $newGrpName;
+}
+
+//按钮执行
+global proc bb_CtrlTool_fixExtra(int $choose)
+{
+    string $sel[] = `ls -sl`;
+    for($i=0;$i<size($sel);$i++){
+        string $nameArray[] = stringToStringArray($sel[$i], "_");
+        string $CtrlName;
+        if(size($nameArray)>1){
+            stringArrayRemoveAtIndex((size($nameArray)-1), $nameArray);
+            $CtrlName = stringArrayToString($nameArray, "_");
+        }
+        switch($choose){
+        case 1:
+            bb_CtrlTool_addJointApply($CtrlName);
+            break;
+        case 2:
+            bb_CtrlTool_addDrv1Apply($CtrlName);
+            break; 
+        case 3:
+            int $rotateOrder = `optionMenu -q -select rotateOrderMenu`;
+            string $CtrlGroup = `textField -q -text CtrlGroupTF`;
+            string $CtrlGroupArray[] = stringToStringArray($CtrlGroup, ",");
+            for($j=0;$j<size($CtrlGroupArray);$j++){
+                setAttr ($CtrlName+"_"+$CtrlGroupArray[$j]+".rotateOrder") ($rotateOrder-1);
+            } 
+            break;
+        }
+    }
+}
+
+//添加骨骼
+global proc bb_CtrlTool_addJointApply(string $CtrlName)
+{
+    string $CtrlGroup = `textField -q -text CtrlGroupTF`;
+    int $CtrlMod = `optionMenu -q -select jointMenu`;
+    string $CtrlGroupArray[] = stringToStringArray($CtrlGroup, ",");
+    string $CtrlS = $CtrlName + "_" + $CtrlGroupArray[size($CtrlGroupArray)-1];
+    createNode "joint" -n ($CtrlName+"_Joint");
+    parent ($CtrlName+"_Joint") $CtrlS;
+    setAttr ($CtrlName+"_Joint.t") 0 0 0;
+    setAttr ($CtrlName+"_Joint.r") 0 0 0;
+    setAttr ($CtrlName+"_Joint.s") 1 1 1;
+    if($CtrlMod == 1){
+        if(!`objExists "bb_CtrlJoint_Grp"`){
+            createNode "transform" -n "bb_CtrlJoint_Grp";
+        }
+        parent ($CtrlName+"_Joint") "bb_CtrlJoint_Grp";
+        parentConstraint -mo -weight 1 $CtrlS ($CtrlName+"_Joint");
+        connectAttr -f ($CtrlS + ".s") ($CtrlName+"_Joint.s");
+    }
+}
+
+
+//添加驱动组
+global proc bb_CtrlTool_addDrv1Apply(string $CtrlName)
+{
+    string $CtrlGroup = `textField -q -text CtrlGroupTF`;
+    string $CtrlGroupArray[] = stringToStringArray($CtrlGroup, ",");
+    string $CtrlEnv = $CtrlName + "_" + $CtrlGroupArray[0];
+    string $CtrlS = $CtrlName + "_" + $CtrlGroupArray[size($CtrlGroupArray)-1];
+    int $createDrv1 = `checkBox -q -value createDrv1CB`;
+    
+    createNode "transform" -n ($CtrlName+"_CtrlDrv1"); 
+    parent ($CtrlName+"_CtrlDrv1") $CtrlEnv;
+    setAttr ($CtrlName+"_CtrlDrv1.t") 0 0 0;
+    setAttr ($CtrlName+"_CtrlDrv1.r") 0 0 0;
+    setAttr ($CtrlName+"_CtrlDrv1.s") 1 1 1;
+    parentConstraint -weight 1 $CtrlS ($CtrlName+"_CtrlDrv1");
+    scaleConstraint -weight 1 $CtrlS ($CtrlName+"_CtrlDrv1");
+}
+
+//隐藏、显示pivot
+global proc bb_CtrlTool_visPivots()
+{
+    string $pivot[] = `ls "*Pivot"`;
+    if(size($pivot)>0){
+        int $vis;
+        int $visJudge = `getAttr ($pivot[0]+".v")`;
+        if($visJudge == 0){
+            $vis = 1;
+        }
+        else{
+            $vis = 0;
+        }
+        for($i=0;$i<size($pivot);$i++){
+            string $attrPivot[] = `listConnections -d off -s on -plugs on ($pivot[$i]+".v")`;
+            if(size($attrPivot)>0)
+                setAttr $attrPivot[0] $vis;
+        }
+    }
+}
+
+//创建基础控制器
+global proc bb_CtrlTool_porpsCtrlApply()
+{
+    string $CtrlName = `textField -q -text CtrlNameTF`;
+    createNode "transform" -n $CtrlName;
+    setAttr -lock true -keyable false -channelBox false ($CtrlName + ".tx");
+    setAttr -lock true -keyable false -channelBox false ($CtrlName + ".ty");
+    setAttr -lock true -keyable false -channelBox false ($CtrlName + ".tz");
+    setAttr -lock true -keyable false -channelBox false ($CtrlName + ".rx");
+    setAttr -lock true -keyable false -channelBox false ($CtrlName + ".ry");
+    setAttr -lock true -keyable false -channelBox false ($CtrlName + ".rz");
+    setAttr -lock true -keyable false -channelBox false ($CtrlName + ".sx");
+    setAttr -lock true -keyable false -channelBox false ($CtrlName + ".sy");
+    setAttr -lock true -keyable false -channelBox false ($CtrlName + ".sz");
+    createNode "transform" -n "Loc_CtrlEnv";
+    bb_CtrlTool_createShape("CtrlShape_arrowCircle2","Loc_Ctrl");
+    setAttr -lock true -keyable false -channelBox false "Loc_Ctrl.v";
+    createNode "transform" -n "Mov_CtrlEnv";
+    bb_CtrlTool_createShape("CtrlShape_circle","Mov_Ctrl");
+    scale -p 0 0 0 -ocp 1.5 1.5 1.5  "Mov_CtrlShape.cv[0:7]";
+    setAttr -lock true -keyable false -channelBox false "Mov_Ctrl.v";
+    createNode "transform" -n ("MainEnv");
+    bb_CtrlTool_createShape("CtrlShape_triangle",("Main"));
+    scale -p 0 0 0 -ocp 1.8 1.8 1.8  ("Main.cv[0:3]");
+    setAttr -lock true -keyable false -channelBox false ("Main.v");
+    createNode "transform" -n "NoTransform";
+    setAttr -lock true -keyable false -channelBox false "NoTransform.tx";
+    setAttr -lock true -keyable false -channelBox false "NoTransform.ty";
+    setAttr -lock true -keyable false -channelBox false "NoTransform.tz";
+    setAttr -lock true -keyable false -channelBox false "NoTransform.rx";
+    setAttr -lock true -keyable false -channelBox false "NoTransform.ry";
+    setAttr -lock true -keyable false -channelBox false "NoTransform.rz";
+    setAttr -lock true -keyable false -channelBox false "NoTransform.sx";
+    setAttr -lock true -keyable false -channelBox false "NoTransform.sy";
+    setAttr -lock true -keyable false -channelBox false "NoTransform.sz";
+    createNode "transform" -n "Geometry";
+
+    parent "Loc_CtrlEnv" "NoTransform" $CtrlName;
+    parent "Geometry" "NoTransform" ;
+    parent "Loc_Ctrl" "Loc_CtrlEnv" ;
+    parent "Mov_CtrlEnv" "Loc_Ctrl" ;
+    parent "Mov_Ctrl" "Mov_CtrlEnv" ;
+    parent ("MainEnv") "Mov_Ctrl" ;
+    parent ("Main") ("MainEnv");
+}
+
+global proc bb_CtrlTool_createShape(string $shapeStyle,string $shapeName)
+{
+    string $shapeArray[] = {"CtrlShape_sphere","CtrlShape_cube","CtrlShape_pyramid","CtrlShape_rhombus","CtrlShape_cylinder","CtrlShape_circle",
+                            "CtrlShape_square","CtrlShape_triangle","CtrlShape_arrowhead1","CtrlShape_arrowhead2","CtrlShape_arrowCircle1","CtrlShape_arrowCircle2",
+                            "CtrlShape_cross","CtrlShape_arc1","CtrlShape_arc2","CtrlShape_loc"};
+    int $shape;
+    for($i=0;$i<size($shapeArray);$i++){
+        if($shapeArray[$i]==$shapeStyle){
+            $shape=$i+1;
+            break;
+        } 
+    }
+    switch($shape){
+        case 1://球
+            curve -d 1 -p 0 1 0 -p 0.5 0.866025 0 -p 0.866025 0.5 0 -p 1 0 0 -p 0.866025 -0.5 0 -p 0.5 -0.866025 0 -p 0 -1 0 -p -0.5 -0.866025 0 -p -0.866025 -0.5 0 
+            -p -1 0 0 -p -0.866025 0.5 0 -p -0.5 0.866025 0 -p 0 1 0 -p 0 0.866025 -0.5 -p 0 0.5 -0.866025 -p 0 0 -1 -p 0 -0.5 -0.866025 -p 0 -0.866025 -0.5 
+            -p 0 -1 0 -p 0 -0.866025 0.5 -p 0 -0.5 0.866025 -p 0 0 1 -p 0 0.5 0.866025 -p 0 0.866025 0.5 -p 0 1 0 -p 0 0.866025 -0.5 -p 0 0.5 -0.866025 -p 0 0 -1 
+            -p 0.5 0 -0.866025 -p 0.866025 0 -0.5 -p 1 0 0 -p 0.866025 0 0.5 -p 0.5 0 0.866025 -p 0 0 1 -p -0.5 0 0.866025 -p -0.866025 0 0.5 -p -1 0 0 -p -0.866025 0 -0.5 
+            -p -0.5 0 -0.866025 -p 0 0 -1 -k 0 -k 1 -k 2 -k 3 -k 4 -k 5 -k 6 -k 7 -k 8 -k 9 -k 10 -k 11 -k 12 -k 13 -k 14 -k 15 -k 16 -k 17 -k 18 -k 19 -k 20 -k 21 -k 22 
+            -k 23 -k 24 -k 25 -k 26 -k 27 -k 28 -k 29 -k 30 -k 31 -k 32 -k 33 -k 34 -k 35 -k 36 -k 37 -k 38 -k 39 -n $shapeName;
+            break;
+        case 2://立方体
+            curve -d 1 -p -0.5 0.5 -0.5 -p -0.5 0.5 0.5 -p 0.5 0.5 0.5 -p 0.5 0.5 -0.5 -p -0.5 0.5 -0.5 -p -0.5 -0.5 -0.5 -p -0.5 -0.5 0.5 -p 0.5 -0.5 0.5 
+            -p 0.5 -0.5 -0.5 -p -0.5 -0.5 -0.5 -p -0.5 0.5 -0.5 -p -0.5 0.5 0.5 -p -0.5 -0.5 0.5 -p 0.5 -0.5 0.5 -p 0.5 0.5 0.5 -p 0.5 0.5 -0.5 -p 0.5 -0.5 -0.5 -k 0 
+            -k 1 -k 2 -k 3 -k 4 -k 5 -k 6 -k 7 -k 8 -k 9 -k 10 -k 11 -k 12 -k 13 -k 14 -k 15 -k 16 -n $shapeName;  
+            break;
+        case 3://金字塔
+            curve -d 1 -p 0 0.353553 0 -p 9.27258e-008 -0.353553 -0.707107 -p -0.707107 -0.353553 -6.18172e-008 -p -3.09086e-008 -0.353553 0.707107 -p 0.707107 -0.353553 0 
+            -p 9.27258e-008 -0.353553 -0.707107 -p 0 0.353553 0 -p -0.707107 -0.353553 -6.18172e-008 -p -3.09086e-008 -0.353553 0.707107 -p 0 0.353553 0 
+            -p 0.707107 -0.353553 0 -k 0 -k 1 -k 2 -k 3 -k 4 -k 5 -k 6 -k 7 -k 8 -k 9 -k 10 -n $shapeName;
+            break;
+        case 4://菱形
+            curve -d 1 -p 0 0.707107 0 -p 9.27258e-008 0 -0.707107 -p 0 -0.707107 0 -p -3.09086e-008 0 0.707107 -p 0 0.707107 0 -p -0.707107 0 -6.18172e-008 
+            -p 0 -0.707107 0 -p 0.707107 0 0 -p 0 0.707107 0 -p -3.09086e-008 0 0.707107 -p -0.707107 0 -6.18172e-008 -p 9.27258e-008 0 -0.707107 -p 0.707107 0 0 
+            -p -3.09086e-008 0 0.707107 -k 0 -k 1 -k 2 -k 3 -k 4 -k 5 -k 6 -k 7 -k 8 -k 9 -k 10 -k 11 -k 12 -k 13 -n $shapeName;
+            break;
+        
+        case 5://圆柱
+            curve -d 1 -p -1 1 -1.49012e-007 -p -0.5 1 0.866025 -p 0.5 1 0.866025 -p 1 1 0 -p 0.5 1 -0.866025 -p -0.5 1 -0.866026 -p -1 1 -1.49012e-007 -p -1 -1 -1.49012e-007 
+            -p -0.5 -1 0.866025 -p 0.5 -1 0.866025 -p 1 -1 0 -p 0.5 -1 -0.866025 -p -0.5 -1 -0.866026 -p -1 -1 -1.49012e-007 -p -1 1 -1.49012e-007 -p -0.5 1 0.866025 
+            -p -0.5 -1 0.866025 -p 0.5 -1 0.866025 -p 0.5 1 0.866025 -p 1 1 0 -p 1 -1 0 -p 0.5 -1 -0.866025 -p 0.5 1 -0.866025 -p -0.5 1 -0.866026 -p -0.5 -1 -0.866026 
+            -k 0 -k 1 -k 2 -k 3 -k 4 -k 5 -k 6 -k 7 -k 8 -k 9 -k 10 -k 11 -k 12 -k 13 -k 14 -k 15 -k 16 -k 17 -k 18 -k 19 -k 20 -k 21 -k 22 -k 23 -k 24 -n $shapeName;
+            break;
+       case 6://圆环
+            circle -nr 0 1 0 -c 0 0 0 -constructionHistory 0 -n $shapeName;
+            break; 
+       case 7://方块
+            curve -d 1 -p 1 0 1 -p 1 0 -1 -p -1 0 -1 -p -1 0 1 -p 1 0 1 -k 0 -k 1 -k 2 -k 3 -k 4 -n $shapeName;
+            break; 
+       case 8://三角
+            curve -d 1 -p 0.866026 0 -0.5 -p -0.866025 0 -0.5 -p 0 0 1 -p 0.866026 0 -0.5 -k 0 -k 1 -k 2 -k 3 -n $shapeName;
+            break; 
+       case 9://箭头
+            curve -d 1 -p 0 0 1.506288 -p 1 0 0.41283 -p 0.5 0 0.41283 -p 0.5 0 -1.283553 -p -0.5 0 -1.283553 -p -0.5 0 0.41283 -p -1 0 0.41283 -p 0 0 1.506288 
+            -k 0 -k 1 -k 2 -k 3 -k 4 -k 5 -k 6 -k 7 -n $shapeName;
+            break; 
+       case 10://2箭头
+            curve -d 1 -p 0 0 2.789841 -p 1 0 1.696382 -p 0.5 0 1.696382 -p 0.5 0 -1.696382 -p 1 0 -1.696382 -p 0 0 -2.789841 -p -1 0 -1.696382 -p -0.5 0 -1.696382 
+            -p -0.5 0 1.696382 -p -1 0 1.696382 -p 0 0 2.789841 -k 0 -k 1 -k 2 -k 3 -k 4 -k 5 -k 6 -k 7 -k 8 -k 9 -k 10 -n $shapeName;  
+            break; 
+       case 11://2箭头圆
+            curve -d 1 -p 3.528175 0 0 -p 2.434717 0 1 -p 2.434717 0 0.5 -p 1.921919 0 0.5 -p 1.902113 0 0.618034 -p 1.618034 0 1.175571 -p 1.17557 0 1.618034 
+            -p 0.618034 0 1.902113 -p -5.96046e-008 0 2 -p -0.618034 0 1.902113 -p -1.175571 0 1.618034 -p -1.618034 0 1.175571 -p -1.902114 0 0.618034 -p -1.920404 0 0.5 
+            -p -2.434716 0 0.5 -p -2.434716 0 1 -p -3.528175 0 0 -p -2.434716 0 -1 -p -2.434716 0 -0.5 -p -1.920404 0 -0.5 -p -1.902114 0 -0.618034 -p -1.618034 0 -1.175571 
+            -p -1.175571 0 -1.618035 -p -0.618034 0 -1.902114 -p 0 0 -2.000001 -p 0.618034 0 -1.902114 -p 1.175571 0 -1.618035 -p 1.618035 0 -1.175571 -p 1.902114 0 -0.618034 
+            -p 1.921919 0 -0.5 -p 2.434717 0 -0.5 -p 2.434717 0 -1 -p 3.528175 0 0 -k 0 -k 1 -k 2 -k 3 -k 4 -k 5 -k 6 -k 7 -k 8 -k 9 -k 10 -k 11 -k 12 -k 13 -k 14 -k 15 -k 16 
+            -k 17 -k 18 -k 19 -k 20 -k 21 -k 22 -k 23 -k 24 -k 25 -k 26 -k 27 -k 28 -k 29 -k 30 -k 31 -k 32 -n $shapeName;
+            break; 
+       case 12://4箭头圆
+            curve -d 1 -p 0 0 2.469723 -p 1 0 2.093856 -p 0.5 0 2.093856 -p 0.5 0 1.920404 -p 0.618034 0 1.902113 -p 1.17557 0 1.618034 -p 1.618034 0 1.175571 -p 1.902113 0 0.618034 
+            -p 1.921919 0 0.5 -p 2.093857 0 0.5 -p 2.093857 0 1 -p 2.469723 0 0 -p 2.093857 0 -1 -p 2.093857 0 -0.5 -p 1.921919 0 -0.5 -p 1.902114 0 -0.618034 -p 1.618035 0 -1.175571 
+            -p 1.175571 0 -1.618035 -p 0.618034 0 -1.902114 -p 0.618034 0 -1.902114 -p 0.5 0 -1.921919 -p 0.5 0 -2.093857 -p 1 0 -2.093857 -p 0 0 -2.469723 -p -1 0 -2.093857 
+            -p -0.5 0 -2.093857 -p -0.5 0 -1.921919 -p -0.618034 0 -1.902114 -p -1.175571 0 -1.618035 -p -1.618034 0 -1.175571 -p -1.902114 0 -0.618034 -p -1.920404 0 -0.5 
+            -p -2.093856 0 -0.5 -p -2.093856 0 -1 -p -2.469723 0 0 -p -2.093856 0 1 -p -2.093856 0 0.5 -p -1.920404 0 0.5 -p -1.902114 0 0.618034 -p -1.618034 0 1.175571 
+            -p -1.175571 0 1.618034 -p -0.618034 0 1.902113 -p -0.5 0 1.920404 -p -0.5 0 2.093856 -p -1 0 2.093856 -p 0 0 2.469723 -k 0 -k 1 -k 2 -k 3 -k 4 -k 5 -k 6 -k 7 -k 8 
+            -k 9 -k 10 -k 11 -k 12 -k 13 -k 14 -k 15 -k 16 -k 17 -k 18 -k 19 -k 20 -k 21 -k 22 -k 23 -k 24 -k 25 -k 26 -k 27 -k 28 -k 29 -k 30 -k 31 -k 32 -k 33 -k 34 -k 35 -k 36 
+            -k 37 -k 38 -k 39 -k 40 -k 41 -k 42 -k 43 -k 44 -k 45 -n $shapeName;
+            break; 
+       case 13://十字
+            curve -d 1 -p -0.490606 0 -1.471817 -p -0.490606 0 -0.490606 -p -1.471817 0 -0.490606 -p -1.471817 0 0.490606 -p -0.490606 0 0.490606 -p -0.490606 0 1.471817 
+            -p 0.490606 0 1.471817 -p 0.490606 0 0.490606 -p 1.471817 0 0.490606 -p 1.471817 0 -0.490606 -p 0.490606 0 -0.490606 -p 0.490606 0 -1.471817 
+            -p -0.490606 0 -1.471817 -k 0 -k 1 -k 2 -k 3 -k 4 -k 5 -k 6 -k 7 -k 8 -k 9 -k 10 -k 11 -k 12 -n $shapeName;
+            break; 
+       case 14://弧90
+            curve -d 1 -p 2.505715 0 1.093459 -p 3.49787 0 0 -p 3 0 0 -p 2.853171 0 -0.927052 -p 2.427053 0 -1.763357 -p 1.763357 0 -2.427052 -p 0.927051 0 -2.853171 
+            -p 0 0 -3.000001 -p 0 0 -2.000001 -p 0.618034 0 -1.902114 -p 1.175571 0 -1.618035 -p 1.618035 0 -1.175571 -p 1.902114 0 -0.618034 -p 2 0 0 -p 1.51356 0 0 
+            -p 2.505715 0 1.093459 -k 0 -k 1 -k 2 -k 3 -k 4 -k 5 -k 6 -k 7 -k 8 -k 9 -k 10 -k 11 -k 12 -k 13 -k 14 -k 15 -n $shapeName;     
+            break; 
+       case 15://弧270
+            curve -d 1 -p 2.505715 0 1.093459 -p 3.49787 0 0 -p 3 0 0 -p 2.853171 0 -0.927052 -p 2.427053 0 -1.763357 -p 1.763357 0 -2.427052 -p 0.927051 0 -2.853171 
+            -p 0 0 -3.000001 -p -0.927051 0 -2.853171 -p -1.763356 0 -2.427052 -p -2.427052 0 -1.763356 -p -2.85317 0 -0.927051 -p -3.000001 0 0 -p -2.85317 0 0.927051 
+            -p -2.427052 0 1.763356 -p -1.763356 0 2.427051 -p -0.927051 0 2.85317 -p -8.9407e-008 0 3 -p -5.96046e-008 0 2 -p -0.618034 0 1.902113 -p -1.175571 0 1.618034 
+            -p -1.618034 0 1.175571 -p -1.902114 0 0.618034 -p -2 0 0 -p -1.902114 0 -0.618034 -p -1.618034 0 -1.175571 -p -1.175571 0 -1.618035 -p -0.618034 0 -1.902114 
+            -p 0 0 -2.000001 -p 0.618034 0 -1.902114 -p 1.175571 0 -1.618035 -p 1.618035 0 -1.175571 -p 1.902114 0 -0.618034 -p 2 0 0 -p 1.51356 0 0 -p 2.505715 0 1.093459 
+            -k 0 -k 1 -k 2 -k 3 -k 4 -k 5 -k 6 -k 7 -k 8 -k 9 -k 10 -k 11 -k 12 -k 13 -k 14 -k 15 -k 16 -k 17 -k 18 -k 19 -k 20 -k 21 -k 22 -k 23 -k 24 -k 25 -k 26 -k 27 
+            -k 28 -k 29 -k 30 -k 31 -k 32 -k 33 -k 34 -k 35 -n $shapeName;
+            break; 
+       case 16://loc
+            curve -d 1 -p 0 0 -1 -p 0 0 1 -p 0 0 0 -p 1 0 0 -p -1 0 0 -p 0 0 0 -p 0 1 0 -p 0 -1 0 -k 0 -k 1 -k 2 -k 3 -k 4 -k 5 -k 6 -k 7 -n $shapeName;
+            break;
+    }
+    int $roAxial = `optionMenu -q -select rotateMenu`;
+    int $angle = `intField -q -value bb_CtrlTool_roIF`;
+    if($angle != 0){
+        int $roAngle[] = {0,0,0};
+        $roAngle[$roAxial-1] = $angle;
+        setAttr ($shapeName + ".r") $roAngle[0] $roAngle[1] $roAngle[2];
+        select -r $shapeName;
+        channelBoxCommand -freezeRotate;
+    }
+}
+
+//改shape
+global proc bb_CtrlTool_changeShape()
+{
+    string $sel[] = `ls -sl`;
+    string $CtrlShape = `radioCollection -q -select CtrlShapeChoose`;
+    for($i=0;$i<size($sel);$i++){
+        string $shape[] =  `listRelatives -s -path $sel[$i]`;
+        if(size($shape)>0){
+            if(`nodeType $shape[0]` == "nurbsCurve"){
+                int $color = `getAttr ($shape[0]+".overrideColor")`;
+                delete $shape;
+                bb_CtrlTool_createShape($CtrlShape,"bb_CtrlTool_changeShape");
+                
+                string $changeShape[] =  `listRelatives -s -path "bb_CtrlTool_changeShape"`;
+                setAttr ($changeShape[0]+".overrideEnabled") 1;
+                setAttr ($changeShape[0]+".overrideColor") $color;
+                parent -s -add  $changeShape[0] $sel[$i];
+                delete "bb_CtrlTool_changeShape";
+            }
+        }
+    }
+}
+
+//控制器旋转
+global proc bb_CtrlTool_RoScaleCtrlShape(int $mod)
+{
+    string $sel[] = `ls -sl`;
+    for($i=0;$i<size($sel);$i++){
+        string $shape[] =  `listRelatives -s -path $sel[$i]`;
+        if(size($shape)>0){
+            if(`nodeType $shape[0]` == "nurbsCurve"){
+                duplicate -rr -n "bb_CtrlRoScale" $shape[0];
+                setAttr -lock false "bb_CtrlRoScale.rx";
+                setAttr -lock false "bb_CtrlRoScale.ry";
+                setAttr -lock false "bb_CtrlRoScale.rz";
+                setAttr -lock false "bb_CtrlRoScale.sx";
+                setAttr -lock false "bb_CtrlRoScale.sy";
+                setAttr -lock false "bb_CtrlRoScale.sz";
+                string $son[] = `listRelatives -children -path "bb_CtrlRoScale"`;
+                for($j=0;$j<size($son);$j++){
+                    if(`nodeType $son[$j]` != "nurbsCurve")
+                        delete $son[$j];
+                }
+                if($mod == 0){
+                    float $scaleValue = `floatField -q -value bb_CtrlTool_scaleFF`;
+                    int $roAxial = `optionMenu -q -select rotateMenu`;
+                    int $angle = `intField -q -value bb_CtrlTool_roIF`;
+                    if($angle != 0){
+                        int $roAngle[] = {0,0,0};
+                        $roAngle[$roAxial-1] = $angle;
+                        setAttr "bb_CtrlRoScale.r" $roAngle[0] $roAngle[1] $roAngle[2];
+                    }
+                    else{
+                        warning -noContext "MDZZ，0度你要转个啥子？？";
+                    }
+                }
+                else if($mod == 1){
+                    float $scaleValue = `floatField -q -value bb_CtrlTool_scaleFF`;
+                    setAttr "bb_CtrlRoScale.s" $scaleValue $scaleValue $scaleValue;
+                }
+                select -r bb_CtrlRoScale;
+                channelBoxCommand -freezeRotate;
+                channelBoxCommand -freezeScale;
+                string $changeShape[] = `listRelatives -s -path "bb_CtrlRoScale"`;
+                parent -s -add $changeShape $sel[$i];
+                delete "bb_CtrlRoScale" $shape;
+            }
+        }
+    }
+    select -r $sel;
+}
+//合并shape
+global proc bb_CtrlTool_combineShape()
+{
+    string $sel[] = `ls -sl`;
+    string $parent;
+    for($i=0;$i<size($sel);$i++){
+        string $shape[] =  `listRelatives -s -path $sel[$i]`;
+        if(size($shape)>0){
+            if(`nodeType $shape[0]` == "nurbsCurve"){
+                if($parent == "")
+                    $parent = $sel[$i];
+                else{
+                    parent -s -add $shape $parent;
+                    delete $sel[$i];
+                }
+            }
+        }
+    }
+}
+

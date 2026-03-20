@@ -1,0 +1,26 @@
+string $selection[] = `ls -sl`;
+if (size($selection) == 0)
+{
+	warning ("请至少选择一个对象！！！\n");
+}else
+{
+	for ($i = 0; $i < size($selection); $i++)
+	{
+		channelBoxCommand -unlock;
+		//解锁选定对象位移属性
+		CBunlockAttr ($selection[$i] + ".tx");
+		CBunlockAttr ($selection[$i] + ".ty");
+		CBunlockAttr ($selection[$i] + ".tz");
+		//解锁选定对象旋转属性
+		CBunlockAttr ($selection[$i] + ".rx");
+		CBunlockAttr ($selection[$i] + ".ry");
+		CBunlockAttr ($selection[$i] + ".rz");
+		//解锁选定对象缩放属性
+		CBunlockAttr ($selection[$i] + ".sx");
+		CBunlockAttr ($selection[$i] + ".sy");
+		CBunlockAttr ($selection[$i] + ".sz");
+	}
+	makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 -pn 1;
+	ResetTransformations;
+	delete -ch;
+}

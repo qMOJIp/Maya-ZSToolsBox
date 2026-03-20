@@ -1,0 +1,447 @@
+// textToShelf ("Sel", "select -all");添加书架按钮
+
+
+//逐行获取文本
+//freadAllLines($filePath);原版函数
+//global proc string[] getFileLines ( string $filePath )自写函数
+//{
+//	string $lines[] = {};
+//	if (!`filetest -f $filePath`) {
+//		warning("文件不存在: " + $filePath);
+//		return $lines;
+//	}
+//	int $fileId = `fopen $filePath "r"`;
+//	if ($fileId == 0) {
+//		warning("无法打开文件：" + $filePath);
+//		return $lines;
+//	}
+//	
+//	string $line;
+//	while (!`feof $fileId`) {
+//		$line = `fgetline $fileId`;
+//		if (size($line) > 0) {
+//			$lines[size($lines)] = $line;
+//		}
+//	}
+//	fclose $fileId;
+//	return $lines;
+//}
+
+//获取文本
+//freadAllText($filePath);原版函数
+//global proc string getFileText ( string $filePath )自写函数
+//{
+//	string $content = "";
+//	if (!`filetest -f $filePath`) {
+//		warning("文件不存在: " + $filePath);
+//		return $content;
+//	}
+//	int $fileId = `fopen $filePath "r"`;
+//	if ($fileId == 0) {
+//		warning("无法打开文件: " + $filePath);
+//		return $content;
+//	}
+//	string $line;
+//	while (!`feof $fileId`) {
+//		$line = `fgetline $fileId`;
+//		if (size($line) > 0) {
+//			$content += $line;
+//			// 如果不是最后一行，添加换行符
+//			if (!`feof $fileId`) {
+//				$content += "\n";
+//			}
+//		}
+//	}
+//	fclose $fileId;
+//	return $content;
+//}
+
+//复制文件
+global proc copyFile ( string $fromPathContent, string $toPathContent )
+{
+	string $CopyEXE = `asInstallScriptLocation` + "PublicFiles/Executables/CopyFile.exe";
+	string $fromPath = `asInstallScriptLocation` + "PublicFiles/Caches/FromPath.tmp";
+	$fromPathContent = toNativePath($fromPathContent);
+	cleanFile($fromPath);
+	writeFile($fromPath, $fromPathContent);
+	$InstallPath = `textField -q -tx InstallPathField`;
+	string $toPath = `asInstallScriptLocation` + "PublicFiles/Caches/ToPath.tmp";
+	$toPathContent = toNativePath($toPathContent);
+	cleanFile($toPath);
+	writeFile($toPath, $toPathContent);
+	system("start \"" + $CopyEXE + "\"");
+}
+
+//清空文本
+global proc cleanFile ( string $filePath )
+{
+	$fileId=`fopen $filePath "w"`;
+	fprint $fileId "";
+	fclose $fileId;
+}
+
+//追加写入文本
+global proc writeFile ( string $filePath , string $content )
+{
+	$fileId=`fopen $filePath "a"`;
+	fprint $fileId $content;
+	fclose $fileId;
+}
+
+//覆盖写入文本
+//fwriteAllText($filePath,$content);
+
+//逐行写入文本
+//fwriteAllLines($filePath,$content[]);
+
+//合并字符串数组（不排除相同项）
+global proc string[] mergeStringArrays ( string $array1[], string $array2[] )
+{
+	string $merged[] = {};
+	// 添加第一个数组的所有元素
+	for ($i = 0; $i < size($array1); $i++)
+	{
+		$merged[size($merged)] = $array1[$i];
+	}
+	// 添加第二个数组的所有元素
+	for ($i = 0; $i < size($array2); $i++)
+	{
+		$merged[size($merged)] = $array2[$i];
+	}
+	return $merged;
+}
+
+//两个字符串的差集
+global proc string[] getStringArrayDifference ( string $array1[], string $array2[] )
+{
+	/*
+	获取数组1中有但数组2中没有的元素（差集）
+	参数: 
+		$array1 - 第一个数组
+		$array2 - 第二个数组
+	返回: array1 - array2
+	*/
+	string $difference[] = {};
+	
+	for ($i = 0; $i < size($array1); $i++) {
+		string $item = $array1[$i];
+		int $found = 0;
+		// 在 array2 中查找
+		for ($j = 0; $j < size($array2); $j++) {
+			if ($array2[$j] == $item) {
+				$found = 1;
+				break;
+			}
+		}
+		// 如果在 array2 中没找到，添加到差集
+		if (!$found) {
+			$difference[size($difference)] = $item;
+		}
+	}
+	return $difference;
+}
+
+//获取文件创建、修改、访问时间
+global proc string[] getFileTimes ( string $filePath )
+{
+	string $times[] = {};
+	if (!`filetest -e $filePath`) {
+		warning("文件不存在: " + $filePath);
+		return $times;
+	}
+	// 使用Python获取时间信息
+	string $pythonScript = "import os\n";
+	$pythonScript += "import maya.cmds as cmds\n";
+	$pythonScript += "from datetime import datetime\n";
+	$pythonScript += "\n";
+	$pythonScript += "def get_file_times(file_path):\n";
+	$pythonScript += "    times = []\n";
+	$pythonScript += "    \n";
+	$pythonScript += "    try:\n";
+	$pythonScript += "        s = os.stat(file_path)\n";
+	$pythonScript += "        ctime = s.st_ctime if hasattr(s, 'st_ctime') else s.st_mtime\n";
+	$pythonScript += "        mtime = s.st_mtime\n";
+	$pythonScript += "        atime = s.st_atime\n";
+	$pythonScript += "        \n";
+	$pythonScript += "        fmt = '%Y-%m-%d %H:%M:%S'\n";
+	$pythonScript += "        times = [\n";
+	$pythonScript += "            datetime.fromtimestamp(ctime).strftime(fmt),\n";
+	$pythonScript += "            datetime.fromtimestamp(mtime).strftime(fmt),\n";
+	$pythonScript += "            datetime.fromtimestamp(atime).strftime(fmt)\n";
+	$pythonScript += "        ]\n";
+	$pythonScript += "    except Exception as e:\n";
+	$pythonScript += "        times = ['错误', str(e), '']\n";
+	$pythonScript += "    \n";
+	$pythonScript += "    return times\n";
+	$pythonScript += "\n";
+	$pythonScript += "# 获取时间并存储到 optionVar\n";
+	$pythonScript += "times = get_file_times(r'" + $filePath + "')\n";
+	$pythonScript += "if times:\n";
+	$pythonScript += "    # 用竖连接三个时间\n";
+	$pythonScript += "    times_str = '|'.join(times)\n";
+	$pythonScript += "    cmds.optionVar(stringValue=('Filetimes', times_str))\n";
+	// 执行 Python 代码
+	python $pythonScript;
+	// 获取结果
+	$times = stringToStringArray(`optionVar -q Filetimes`, "|");
+	return $times;
+}
+
+//获取指定目录下的所有文件夹名称
+global proc string[] getFoldersInDirectory ( string $directory )
+{
+	string $folders[] = {};
+	// 检查目录是否存在
+	if (!`filetest -d $directory`)
+	{
+		warning("目录不存在: " + $directory);
+		return $folders;
+	}
+	// 使用Python获取文件夹列表
+	string $pythonScript = "import os\n";
+	$pythonScript += "\n";
+	$pythonScript += "def get_directory_folders(dir_path):\n";
+	$pythonScript += "    folders = []\n";
+	$pythonScript += "    try:\n";
+	$pythonScript += "        for item in os.listdir(dir_path):\n";
+	$pythonScript += "            item_path = os.path.join(dir_path, item)\n";
+	$pythonScript += "            if os.path.isdir(item_path):\n";
+	$pythonScript += "                folders.append(item)\n";
+	$pythonScript += "        # 按名称排序\n";
+	$pythonScript += "        folders.sort(key=str.lower)\n";
+	$pythonScript += "    except Exception as e:\n";
+	$pythonScript += "        print('错误: ' + str(e))\n";
+	$pythonScript += "    \n";
+	$pythonScript += "    return folders\n";
+	$pythonScript += "\n";
+	$pythonScript += "folders = get_directory_folders(r'" + $directory + "')\n";
+	$pythonScript += "if folders:\n";
+	$pythonScript += "    # 用竖连接文件夹名字\n";
+	$pythonScript += "    folders_str = '|'.join(folders)\n";
+	$pythonScript += "    cmds.optionVar(stringValue=('systemFolders', folders_str))\n";
+	// 执行 Python 代码
+	python $pythonScript;
+	// 获取结果
+	$folders = stringToStringArray(`optionVar -q systemFolders`, "|");
+	return $folders;
+}
+
+//获取指定目录下的所有文件类型并统计数量
+global proc string[] getFileTypesWithCount ( string $directory )
+{
+	string $typeStats[] = {};
+	
+	if (!`filetest -d $directory`) {
+		warning("目录不存在: " + $directory);
+		return $typeStats;
+	}
+	// 使用Python统计
+	string $pythonScript = "import os\n";
+	$pythonScript += "from collections import defaultdict\n";
+	$pythonScript += "import maya.cmds as cmds\n";
+	$pythonScript += "\n";
+	$pythonScript += "def get_file_type_stats(dir_path):\n";
+	$pythonScript += "    type_count = defaultdict(int)\n";
+	$pythonScript += "    total_files = 0\n";
+	$pythonScript += "    \n";
+	$pythonScript += "    try:\n";
+	$pythonScript += "        for item in os.listdir(dir_path):\n";
+	$pythonScript += "            item_path = os.path.join(dir_path, item)\n";
+	$pythonScript += "            if os.path.isfile(item_path):\n";
+	$pythonScript += "                total_files += 1\n";
+	$pythonScript += "                name, ext = os.path.splitext(item)\n";
+	$pythonScript += "                if ext:\n";
+	$pythonScript += "                    ext_key = ext.lower()\n";
+	$pythonScript += "                else:\n";
+	$pythonScript += "                    ext_key = '未知'\n";
+	$pythonScript += "                type_count[ext_key] += 1\n";
+	$pythonScript += "    except Exception as e:\n";
+	$pythonScript += "        print('错误: ' + str(e))\n";
+	$pythonScript += "    \n";
+	$pythonScript += "    return type_count, total_files\n";
+	$pythonScript += "\n";
+	$pythonScript += "type_count, total = get_file_type_stats(r'" + $directory + "')\n";
+	$pythonScript += "\n";
+	$pythonScript += "# 构建结果字符串\n";
+	$pythonScript += "result_parts = ['文件:' + str(total)]\n";
+	$pythonScript += "\n";
+	$pythonScript += "# 按数量降序排序\n";
+	$pythonScript += "for ext, count in sorted(type_count.items(), key=lambda x: x[1], reverse=True):\n";
+	$pythonScript += "    result_parts.append(ext + ':' + str(count))\n";
+	$pythonScript += "\n";
+	$pythonScript += "# 用分号连接所有部分\n";
+	$pythonScript += "types_str = '|'.join(result_parts)\n";
+	$pythonScript += "cmds.optionVar(stringValue=('systemFileTypes', types_str))\n";
+	// 执行 Python 代码
+	python $pythonScript;
+	// 获取结果
+	$typeStats = stringToStringArray(`optionVar -q systemFileTypes`, "|");
+	return $typeStats;
+}
+
+//等待（秒）
+global proc wait ( float $seconds )
+{
+	string $pythonCmd = "import time\n";
+	$pythonCmd = $pythonCmd + "time.sleep(" + $seconds + ")\n";
+	python($pythonCmd);
+}
+
+// GitHub版本检测
+global proc string checkGitHubVersion (string $owner, string $repo)
+{
+	string $gGitHubAPI = "https://api.github.com/repos/";
+	string $apiUrl = $gGitHubAPI + $owner + "/" + $repo + "/releases/latest";
+	
+	// 构建 Python 脚本字符串，注意转义引号
+	string $pythonScript = "import urllib.request, json, ssl, maya.cmds as cmds\n";
+	$pythonScript += "context = ssl._create_unverified_context()\n";
+	$pythonScript += "try:\n";
+	$pythonScript += "    req = urllib.request.Request('" + $apiUrl + "')\n";
+	$pythonScript += "    req.add_header('User-Agent', 'Maya-Plugin-Updater')\n";
+	$pythonScript += "    with urllib.request.urlopen(req, context=context, timeout=10) as response:\n";
+	$pythonScript += "        data = json.loads(response.read().decode())\n";
+	$pythonScript += "    version = data.get('tag_name', '1.0.0')\n";
+	$pythonScript += "    cmds.optionVar(sv=('ZSToolsBoxVersion', version))\n";
+	$pythonScript += "except Exception as e:\n";
+	$pythonScript += "    error_msg = '查询失败: ' + str(e)\n";
+	$pythonScript += "    cmds.optionVar(sv=('ZSToolsBoxVersion', error_msg))\n";
+	// 执行 Python 代码
+	python $pythonScript;
+	// 查询结果
+	string $result = `optionVar -q ZSToolsBoxVersion`;
+	return $result;
+}
+
+//获取系统磁盘路径
+global proc string[] getSystemDrives ()
+{
+	string $drives[] = {};
+	string $pythonScript = "import ctypes\n";
+	$pythonScript += "import maya.cmds as cmds\n";
+	$pythonScript += "\n";
+	$pythonScript += "drives = []\n";
+	$pythonScript += "try:\n";
+	$pythonScript += "    bitmask = ctypes.windll.kernel32.GetLogicalDrives()\n";
+	$pythonScript += "    for i in range(26):\n";
+	$pythonScript += "        if bitmask & (1 << i):\n";
+	$pythonScript += "            drive = chr(65 + i) + ':\\\\\\\\'\n";
+	$pythonScript += "            drives.append(drive)\n";
+	$pythonScript += "except Exception as e:\n";
+	$pythonScript += "    print('获取磁盘列表失败: ' + str(e))\n";
+	$pythonScript += "\n";
+	$pythonScript += "# 将列表转换为字符串（用竖分隔）\n";
+	$pythonScript += "if drives:\n";
+	$pythonScript += "    drives_str = '|'.join(drives)\n";
+	$pythonScript += "    cmds.optionVar(stringValue=('systemDrives', drives_str))\n";
+	$pythonScript += "else:\n";
+	$pythonScript += "    cmds.optionVar(stringValue=('systemDrives', ''))\n";
+	// 执行 Python 代码
+	python $pythonScript;
+	// 获取结果
+	$drives = stringToStringArray(`optionVar -q systemDrives`, "|");
+	return $drives;
+}
+
+//获取当前安装所在的路径
+global proc asInstallScriptLocator (){}
+
+global proc string asInstallScriptLocation ()
+{
+	string $whatIs = `whatIs asInstallScriptLocator`;
+	string $fullPath = `substring $whatIs 25 999`;
+	string $buffer[];
+	string $slash = "/";
+	if (`gmatch $whatIs "*\\\\*"`)//sourced from ScriptEditor
+		$slash = "\\";
+	int $numTok = `tokenize $fullPath $slash $buffer`;
+	int $numLetters = size($fullPath);
+	int $numLettersLastFolder = size($buffer[$numTok-1]);
+	string $scriptLocation = `substring $fullPath 1 ($numLetters-$numLettersLastFolder)`;
+	$scriptLocation = dirname($scriptLocation) + "/";
+	return $scriptLocation;
+}
+
+//十进制转十六进制
+global proc int hexCharToInt ( string $char )
+{
+	if ($char == "0") return 0;
+	if ($char == "1") return 1;
+	if ($char == "2") return 2;
+	if ($char == "3") return 3;
+	if ($char == "4") return 4;
+	if ($char == "5") return 5;
+	if ($char == "6") return 6;
+	if ($char == "7") return 7;
+	if ($char == "8") return 8;
+	if ($char == "9") return 9;
+	if ($char == "A") return 10;
+	if ($char == "B") return 11;
+	if ($char == "C") return 12;
+	if ($char == "D") return 13;
+	if ($char == "E") return 14;
+	if ($char == "F") return 15;
+	return 0;
+}
+
+//HEX色号转RGB色号
+global proc int[] hexToRGB ( string $hexColor )
+{
+	// 移除#号
+	$hexColor = `substituteAllString $hexColor "#" ""`;
+	// 分割字符串
+	string $parts[];
+	for ($i=1; $i<=6; $i++)
+	{
+		$parts[$i-1] = `substring $hexColor $i $i`;
+	}
+	
+	if (size($parts) != 6) {
+		error "十六进制颜色格式错误！应为6位字符，例如: #FF0000";
+		int $error[] = {0, 0, 0};
+		return $error;
+	}
+	// 手动解析十六进制
+	int $r = 0, $g = 0, $b = 0;
+	// 解析R分量
+	$r = hexCharToInt($parts[0]) * 16 + hexCharToInt($parts[1]);
+	// 解析G分量
+	$g = hexCharToInt($parts[2]) * 16 + hexCharToInt($parts[3]);
+	// 解析B分量
+	$b = hexCharToInt($parts[4]) * 16 + hexCharToInt($parts[5]);
+	int $rgb[] = { $r , $g , $b };
+	return $rgb;
+}
+
+//十六进制转十进制
+global proc string decToHex2 ( int $dec )
+{
+	$dec = min(255, max(0, $dec));
+	
+	// 十六进制字符
+	string $hexChars[] = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "A", "B", "C", "D", "E", "F"};
+	
+	int $first = $dec / 16;
+	int $second = $dec % 16;
+	
+	return ($hexChars[$first] + $hexChars[$second]);
+}
+
+//RGB色号转HEX色号
+global proc string rgbToHex ( float $r, float $g, float $b )
+{
+	// 确保值在0-255范围内
+	$r = min(255, max(0, $r));
+	$g = min(255, max(0, $g));
+	$b = min(255, max(0, $b));
+	// 转换为整数
+	int $ri = $r;
+	int $gi = $g;
+	int $bi = $b;
+	// 转换为十六进制字符串
+	string $rHex = decToHex2($ri);
+	string $gHex = decToHex2($gi);
+	string $bHex = decToHex2($bi);
+	// 返回带#的十六进制颜色
+	return ("#" + $rHex + $gHex + $bHex);
+}

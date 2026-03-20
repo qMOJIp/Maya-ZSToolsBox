@@ -1,0 +1,1368 @@
+//加载公共函数
+eval ("source \"" + `asInstallScriptLocation` + "Scripts/ALLPublicScripts.mel\"");
+//加载关键帧动画导入导出插件
+if (!`window -exists "ImportExportKeyframesWindow"`)
+{
+	eval ("source \"" + `asInstallScriptLocation` + "Scripts/ImportExportKeyframes.mel\"");
+	deleteUI -window "ImportExportKeyframesWindow";
+}
+//检测动画控制面板帮助窗口
+global proc CACPHelp ()
+{
+	if (`window -exists "CACPHelpWindow"`)
+	{
+		deleteUI -window "CACPHelpWindow";
+	}
+	window -h 54 -w 432 -title "帮助" -rtf 1 -s 0 -tlb 0 CACPHelpWindow;// -h 251 -w 411
+	columnLayout -columnAttach both 5 CACPHelpcolumnLayout;
+		separator -height 5 -style "none";
+		frameLayout -w 420 -ec "frameLayoutChangeWindowNewHeight(\"CACPHelpWindow\",\"CACPHelpframeLayout1\")" -pcc "frameLayoutChangeWindowBackHeight(\"CACPHelpWindow\",\"CACPHelpframeLayout1\")" -cl 1 -cll 1 -label "基础界面" CACPHelpframeLayout1;
+			scrollLayout -w 400 -h 300 CACPHelpscrollLayout1;
+				image -image (`asInstallScriptLocation` + "PublicFiles/Helps/AnimationCheckPanel/Helpimage1.svg");
+				image -image (`asInstallScriptLocation` + "PublicFiles/Helps/AnimationCheckPanel/Helpimage2.svg");
+				image -image (`asInstallScriptLocation` + "PublicFiles/Helps/AnimationCheckPanel/Helpimage3.svg");
+				image -image (`asInstallScriptLocation` + "PublicFiles/Helps/AnimationCheckPanel/Helpimage4.svg");
+				image -image (`asInstallScriptLocation` + "PublicFiles/Helps/AnimationCheckPanel/Helpimage5.svg");
+				image -image (`asInstallScriptLocation` + "PublicFiles/Helps/AnimationCheckPanel/Helpimage6.svg");
+				image -image (`asInstallScriptLocation` + "PublicFiles/Helps/AnimationCheckPanel/Helpimage7.svg");
+			setParent ..;
+		setParent ..;
+
+		frameLayout -w 420 -ec "frameLayoutChangeWindowNewHeight(\"CACPHelpWindow\",\"CACPHelpframeLayout2\")" -pcc "frameLayoutChangeWindowBackHeight(\"CACPHelpWindow\",\"CACPHelpframeLayout2\")" -cl 1 -cll 1 -label "编辑界面" CACPHelpframeLayout2;
+			scrollLayout -w 400 -h 300 CACPHelpscrollLayout2;
+				image -image (`asInstallScriptLocation` + "PublicFiles/Helps/AnimationCheckPanel/Helpeditimage1.svg");
+				image -image (`asInstallScriptLocation` + "PublicFiles/Helps/AnimationCheckPanel/Helpeditimage2.svg");
+				image -image (`asInstallScriptLocation` + "PublicFiles/Helps/AnimationCheckPanel/Helpeditimage3.svg");
+				image -image (`asInstallScriptLocation` + "PublicFiles/Helps/AnimationCheckPanel/Helpeditimage4.svg");
+				image -image (`asInstallScriptLocation` + "PublicFiles/Helps/AnimationCheckPanel/Helpeditimage5.svg");
+				image -image (`asInstallScriptLocation` + "PublicFiles/Helps/AnimationCheckPanel/Helpeditimage6.svg");
+				image -image (`asInstallScriptLocation` + "PublicFiles/Helps/AnimationCheckPanel/Helpeditimage7.svg");
+				image -image (`asInstallScriptLocation` + "PublicFiles/Helps/AnimationCheckPanel/Helpeditimage8.svg");
+			setParent ..;
+		setParent ..;
+		separator -height 5 -style "none";
+	setParent ..;
+	showWindow CACPHelpWindow;
+}
+
+//检测编辑额外窗口
+global proc CACPEidtExtra ()
+{
+	if (`window -exists "CACPEidtExtraWindow"`)
+	{
+		deleteUI -window "CACPEidtExtraWindow";
+	}
+	window -h 78 -w 100 -title "编辑" -rtf 1 -s 0 -tlb 1 CACPEidtExtraWindow;// -h 251 -w 411
+	columnLayout -columnAttach both 5 CACPEidtExtracolumnLayout;
+		separator -height 5 -style "none";
+		intField -v 1000 -ann "下一部位增加值" CACPEidtExtratextField;
+		button -h 25 -c "playbackOptions -e -ast `playbackOptions -q -max` -min `playbackOptions -q -max`;playbackOptions -e -aet (`playbackOptions -q -max` + `intField -q -v CACPEidtExtratextField`) -max (`playbackOptions -q -max` + `intField -q -v CACPEidtExtratextField`);" -ann "下一部位" -label "下一部位" CACPEidtExtraButton1;
+		button -h 25 -c "playbackOptions -e -max `currentTime -q`;" -ann "将当前选中帧作为末尾帧" -label "选中末尾帧" CACPEidtExtraButton2;
+		separator -height 5 -style "none";
+	setParent ..;
+	showWindow CACPEidtExtraWindow;
+}
+//检测动画控制面板
+global proc CheckAnimationCtrlPanel ()
+{
+	if (`window -exists "CheckAnimationCtrlPanelWindow"`)
+	{
+		deleteUI -window "CheckAnimationCtrlPanelWindow";
+	}
+	window -closeCommand "CACPCleanNowDate" -h 251 -w 411 -title "检测动画控制面板" -rtf 1 -s 0 -tlb 0 CheckAnimationCtrlPanelWindow;// -h 251 -w 411
+	columnLayout CACPAllcolumnLayout;
+		rowColumnLayout -numberOfColumns 2 -adjustableColumn 2 -columnWidth 1 202 -columnWidth 2 205 CACProwColumnLayout1;
+			formLayout -w 202 -h 216 CACPformLayout;
+				symbolButton -po 0 -c "CACPFilterParts ( \"CACPHandIconLeft\" )" -width 20 -height 14 -sbm "检查左手" -image (`asInstallScriptLocation` + "Icon/CACPHandIconLeft.svg") CACPHandIconLeft;
+				symbolButton -po 0 -c "CACPFilterParts ( \"CACPHandIconRight\" )" -width 20 -height 14 -sbm "检查左手" -image (`asInstallScriptLocation` + "Icon/CACPHandIconRight.svg") CACPHandIconRight;
+				symbolButton -po 0 -c "CACPFilterParts ( \"CACPElbowIconLeft\" )" -width 66 -height 18 -sbm "检查右臂" -image (`asInstallScriptLocation` + "Icon/CACPElbowIconLeft.svg") CACPElbowIconLeft;
+				symbolButton -po 0 -c "CACPFilterParts ( \"CACPElbowIconRight\" )" -width 66 -height 18 -sbm "检查左臂" -image (`asInstallScriptLocation` + "Icon/CACPElbowIconRight.svg") CACPElbowIconRight;
+				symbolButton -po 0 -c "CACPFilterParts ( \"CACPFootIconLeft\" )" -width 20 -height 12 -sbm "检查右脚" -image (`asInstallScriptLocation` + "Icon/CACPFootIconLeft.svg") CACPFootIconLeft;
+				symbolButton -po 0 -c "CACPFilterParts ( \"CACPFootIconRight\" )" -width 20 -height 12 -sbm "检查左脚" -image (`asInstallScriptLocation` + "Icon/CACPFootIconRight.svg") CACPFootIconRight;
+				symbolButton -po 0 -c "CACPFilterParts ( \"CACPHipIconLeft\" )" -width 25 -height 96 -sbm "检查右腿" -image (`asInstallScriptLocation` + "Icon/CACPHipIconLeft.svg") CACPHipIconLeft;
+				symbolButton -po 0 -c "CACPFilterParts ( \"CACPHipIconRight\" )" -width 25 -height 96 -sbm "检查左腿" -image (`asInstallScriptLocation` + "Icon/CACPHipIconRight.svg") CACPHipIconRight;
+				symbolButton -po 0 -c "CACPFilterParts ( \"CACPHeadIcon\" )" -width 20 -height 30 -sbm "检查头部" -image (`asInstallScriptLocation` + "Icon/CACPHeadIcon.svg") CACPHeadIcon;
+				symbolButton -po 0 -c "CACPFilterParts ( \"CACPSpineIcon\" )" -width 44 -height 85 -sbm "检查躯干" -image (`asInstallScriptLocation` + "Icon/CACPSpineIcon.svg") CACPSpineIcon;
+				symbolButton -c "CACPRestoreDefault();" -width 25 -height 25 -sbm "重新选择" -image (`asInstallScriptLocation` + "Icon/Refresh.svg") CACPRefreshIcon;
+				button -po 0 -c "CACPCheckAll" -width 50 -height 30 -ann "检查所有" -label "All" -bgc 0.5 0.5 0.5 CACPAllButton;
+				optionMenu -bgc 0.5 0.5 0.5 -width 50 -height 30 -cc "CACPRestoreDefault();" -ann "设置同时检查部位数" CACPCheckPartNum;
+				symbolButton -c "playButtonBackward;CACPChangePlayIcon ( \"L\" )" -width 20 -height 20 -sbm "向后播放" -image (`asInstallScriptLocation` + "Icon/Play_L.svg") CACPPlayL;
+				symbolButton -c "playButtonForward;CACPChangePlayIcon ( \"R\" )" -width 20 -height 20 -sbm "向前播放" -image (`asInstallScriptLocation` + "Icon/Play_R.svg") CACPPlayR;
+				symbolButton -c "PreviousKey;string $selections[] = `ls -sl`;if(size($selections) == 0){warning (\"请选择含有关键帧的对象！！！\");}" -width 20 -height 20 -sbm "转到上一关键帧" -image (`asInstallScriptLocation` + "Icon/NextKeyFrame_L.svg") CACPNextKeyFrameL;
+				symbolButton -c "NextKey;string $selections[] = `ls -sl`;if(size($selections) == 0){warning (\"请选择含有关键帧的对象！！！\");}" -width 20 -height 20 -sbm "转到下一关键帧" -image (`asInstallScriptLocation` + "Icon/NextKeyFrame_R.svg") CACPNextKeyFrameR;
+				symbolButton -c "playButtonStepBackward;" -width 20 -height 20 -sbm "转到上一帧" -image (`asInstallScriptLocation` + "Icon/NextFrame_L.svg") CACPNextFrameL;
+				symbolButton -c "playButtonStepForward;" -width 20 -height 20 -sbm "转到下一帧" -image (`asInstallScriptLocation` + "Icon/NextFrame_R.svg") CACPNextFrameR;
+				formLayout 
+					-edit
+					-numberOfDivisions 5 
+					//头
+					-attachPosition "CACPHeadIcon" "top" 5 0 
+					-attachPosition "CACPHeadIcon" "left" 91 0 
+					//右手
+					-attachPosition "CACPHandIconLeft" "top" 43 0 
+					-attachPosition "CACPHandIconLeft" "left" 5 0 
+					//右臂
+					-attachPosition "CACPElbowIconLeft" "top" 34 0 
+					-attachPosition "CACPElbowIconLeft" "left" 22 0 
+					//右腿
+					-attachPosition "CACPHipIconLeft" "top" 104 0 
+					-attachPosition "CACPHipIconLeft" "left" 74 0 
+					//右脚
+					-attachPosition "CACPFootIconLeft" "top" 199 0 
+					-attachPosition "CACPFootIconLeft" "left" 65 0 
+					//躯干
+					-attachPosition "CACPSpineIcon" "top" 32 0 
+					-attachPosition "CACPSpineIcon" "left" 79 0 
+					//左手
+					-attachPosition "CACPHandIconRight" "top" 44 0 
+					-attachPosition "CACPHandIconRight" "left" 177 0 
+					-attachPosition "CACPHandIconRight" "right" 5 0 
+					//左臂
+					-attachPosition "CACPElbowIconRight" "top" 34 0 
+					-attachPosition "CACPElbowIconRight" "left" 114 0 
+					//左腿
+					-attachPosition "CACPHipIconRight" "top" 104 0 
+					-attachPosition "CACPHipIconRight" "left" 103 0 
+					//左脚
+					-attachPosition "CACPFootIconRight" "top" 199 0 
+					-attachPosition "CACPFootIconRight" "left" 117 0 
+					-attachPosition "CACPFootIconRight" "bottom" 5 0 
+					//全部
+					-attachPosition "CACPAllButton" "top" 180 0 
+					-attachPosition "CACPAllButton" "left" 142 0 
+					//同时检查部位数
+					-attachPosition "CACPCheckPartNum" "top" 180 0 
+					-attachPosition "CACPCheckPartNum" "left" 10 0 
+					//刷新
+					-attachPosition "CACPRefreshIcon" "top" 140 0 
+					-attachPosition "CACPRefreshIcon" "left" 155 0 
+					//向后播放
+					-attachPosition "CACPPlayL" "top" 90 0 
+					-attachPosition "CACPPlayL" "left" 10 0 
+					//向前播放
+					-attachPosition "CACPPlayR" "top" 90 0 
+					-attachPosition "CACPPlayR" "left" 40 0 
+					//转到上一关键帧
+					-attachPosition "CACPNextKeyFrameL" "top" 120 0 
+					-attachPosition "CACPNextKeyFrameL" "left" 10 0 
+					//转到下一关键帧
+					-attachPosition "CACPNextKeyFrameR" "top" 120 0 
+					-attachPosition "CACPNextKeyFrameR" "left" 40 0 
+					//转到上一帧
+					-attachPosition "CACPNextFrameL" "top" 150 0 
+					-attachPosition "CACPNextFrameL" "left" 10 0 
+					//转到下一帧
+					-attachPosition "CACPNextFrameR" "top" 150 0 
+					-attachPosition "CACPNextFrameR" "left" 40 0 
+					CACPformLayout;
+			setParent ..;
+			columnLayout CACPcolumnLayout;
+				separator -height 5 -style "none";
+				scrollLayout -w 200 -h 205 CACPscrollLayout;
+					gridLayout -numberOfColumns 3 -cellWidthHeight 60 30 CACPgridLayout;
+					setParent ..;
+				setParent ..;
+				separator -height 5 -style "none";
+			setParent ..;
+		setParent ..;
+		rowColumnLayout -numberOfColumns 10 -columnWidth 1 5 -columnWidth 2 195 -columnWidth 3 5 -columnWidth 4 50 -columnWidth 5 5 -columnWidth 6 50 -columnWidth 7 5 -columnWidth 8 30 -columnWidth 9 5 -columnWidth 10 50 CACProwColumnLayout2;
+			text -label "" CACPNone0;
+			optionMenu -ann "选择检查数据" -changeCommand "LoadOutAimDate" CACPoptionMenu;
+				CACPoptionMenuAdd();
+			text -label "" CACPNone1;
+			button -label "移除" -ann "移除当前中所有的关键帧" -c "CACPUnLoadAimDate" CACPUnLoadAimDate;
+			text -label "" CACPNone2;
+			button -po 0 -label "编辑" -ann "编辑按钮限制区间" -c "CACPEditAimDate" CACPEditAimDate;
+			text -label "" CACPNone3;
+			button -label "IEK" -ann "打开关键帧动画导入导出插件" -c "ImportExportKeyframesWindow()" CACPOpenToIEK;
+			text -label "" CACPNone4;
+			button -label "帮助" -ann "获取插件使用帮助" -c "CACPHelp()" CACPHelp;
+		setParent ..;
+	separator -height 5 -style "none";
+	setParent ..;
+
+	columnLayout CACPEditcolumnLayout;
+		tabLayout -visible 0 -innerMarginWidth 5 -innerMarginHeight 5 CACPEdittabLayout;
+			rowColumnLayout -w 401 -numberOfColumns 2 -columnWidth 1 340 -columnWidth 2 55 CACPPart1;
+				scrollLayout -w 340 -h 200 CACPPart1scrollLayout;
+					rowColumnLayout -adj 1 -numberOfColumns 4 -columnWidth 1 230 -columnWidth 2 40 -columnWidth 3 10 -columnWidth 4 40 CACPHeadIconEdit;
+						textFieldButtonGrp -editable 0 -columnWidth3 110 80 40 -columnAlign 1 center -ann "设置按钮显示名/获取帧区间" -label "CACPHeadIcon" -text "头" -buttonLabel "获取" -buttonCommand "CACPGetKeyScale(\"CACPHeadIcon\")" CACPHeadIconEdit1;
+						intField -h 25 -w 40 -ann "设置最小帧" -value 0 CACPHeadIconEdit2;
+						text -label "-" CACPHeadIconEdit3;
+						intField -h 25 -w 40 -ann "设置最大帧" -value 0 CACPHeadIconEdit4;
+					setParent ..;
+					rowColumnLayout -adj 1 -numberOfColumns 4 -columnWidth 1 230 -columnWidth 2 40 -columnWidth 3 10 -columnWidth 4 40 CACPHandIconLeftEdit;
+						textFieldButtonGrp -editable 0 -columnWidth3 110 80 40 -columnAlign 1 center -ann "设置按钮显示名/获取帧区间" -label "CACPHandIconLeft" -text "右手" -buttonLabel "获取" -buttonCommand "CACPGetKeyScale(\"CACPHandIconLeft\")" CACPHandIconLeftEdit1;
+						intField -h 25 -w 40 -ann "设置最小帧" -value 0 CACPHandIconLeftEdit2;
+						text -label "-" CACPHandIconLeftEdit3;
+						intField -h 25 -w 40 -ann "设置最大帧" -value 0 CACPHandIconLeftEdit4;
+					setParent ..;
+					rowColumnLayout -adj 1 -numberOfColumns 4 -columnWidth 1 230 -columnWidth 2 40 -columnWidth 3 10 -columnWidth 4 40 CACPHandIconRightEdit;
+						textFieldButtonGrp -editable 0 -columnWidth3 110 80 40 -columnAlign 1 center -ann "设置按钮显示名/获取帧区间" -label "CACPHandIconRight" -text "左手" -buttonLabel "获取" -buttonCommand "CACPGetKeyScale(\"CACPHandIconRight\")" CACPHandIconRightEdit1;
+						intField -h 25 -w 40 -ann "设置最小帧" -value 0 CACPHandIconRightEdit2;
+						text -label "-" CACPHandIconRightEdit3;
+						intField -h 25 -w 40 -ann "设置最大帧" -value 0 CACPHandIconRightEdit4;
+					setParent ..;
+					rowColumnLayout -adj 1 -numberOfColumns 4 -columnWidth 1 230 -columnWidth 2 40 -columnWidth 3 10 -columnWidth 4 40 CACPElbowIconLeftEdit;
+						textFieldButtonGrp -editable 0 -columnWidth3 110 80 40 -columnAlign 1 center -ann "设置按钮显示名/获取帧区间" -label "CACPElbowIconLeft" -text "右臂" -buttonLabel "获取" -buttonCommand "CACPGetKeyScale(\"CACPElbowIconLeft\")" CACPElbowIconLeftEdit1;
+						intField -h 25 -w 40 -ann "设置最小帧" -value 0 CACPElbowIconLeftEdit2;
+						text -label "-" CACPElbowIconLeftEdit3;
+						intField -h 25 -w 40 -ann "设置最大帧" -value 0 CACPElbowIconLeftEdit4;
+					setParent ..;
+					rowColumnLayout -adj 1 -numberOfColumns 4 -columnWidth 1 230 -columnWidth 2 40 -columnWidth 3 10 -columnWidth 4 40 CACPElbowIconRightEdit;
+						textFieldButtonGrp -editable 0 -columnWidth3 110 80 40 -columnAlign 1 center -ann "设置按钮显示名/获取帧区间" -label "CACPElbowIconRight" -text "左臂" -buttonLabel "获取" -buttonCommand "CACPGetKeyScale(\"CACPElbowIconRight\")" CACPElbowIconRightEdit1;
+						intField -h 25 -w 40 -ann "设置最小帧" -value 0 CACPElbowIconRightEdit2;
+						text -label "-" CACPElbowIconRightEdit3;
+						intField -h 25 -w 40 -ann "设置最大帧" -value 0 CACPElbowIconRightEdit4;
+					setParent ..;
+					rowColumnLayout -adj 1 -numberOfColumns 4 -columnWidth 1 230 -columnWidth 2 40 -columnWidth 3 10 -columnWidth 4 40 CACPSpineIconEdit;
+						textFieldButtonGrp -editable 0 -columnWidth3 110 80 40 -columnAlign 1 center -ann "设置按钮显示名/获取帧区间" -label "CACPSpineIcon" -text "躯干" -buttonLabel "获取" -buttonCommand "CACPGetKeyScale(\"CACPSpineIcon\")" CACPSpineIconEdit1;
+						intField -h 25 -w 40 -ann "设置最小帧" -value 0 CACPSpineIconEdit2;
+						text -label "-" CACPSpineIconEdit3;
+						intField -h 25 -w 40 -ann "设置最大帧" -value 0 CACPSpineIconEdit4;
+					setParent ..;
+					rowColumnLayout -adj 1 -numberOfColumns 4 -columnWidth 1 230 -columnWidth 2 40 -columnWidth 3 10 -columnWidth 4 40 CACPHipIconLeftEdit;
+						textFieldButtonGrp -editable 0 -columnWidth3 110 80 40 -columnAlign 1 center -ann "设置按钮显示名/获取帧区间" -label "CACPHipIconLeft" -text "右腿" -buttonLabel "获取" -buttonCommand "CACPGetKeyScale(\"CACPHipIconLeft\")" CACPHipIconLeftEdit1;
+						intField -h 25 -w 40 -ann "设置最小帧" -value 0 CACPHipIconLeftEdit2;
+						text -label "-" CACPHipIconLeftEdit3;
+						intField -h 25 -w 40 -ann "设置最大帧" -value 0 CACPHipIconLeftEdit4;
+					setParent ..;
+					rowColumnLayout -adj 1 -numberOfColumns 4 -columnWidth 1 230 -columnWidth 2 40 -columnWidth 3 10 -columnWidth 4 40 CACPHipIconRightEdit;
+						textFieldButtonGrp -editable 0 -columnWidth3 110 80 40 -columnAlign 1 center -ann "设置按钮显示名/获取帧区间" -label "CACPHipIconRight" -text "左腿" -buttonLabel "获取" -buttonCommand "CACPGetKeyScale(\"CACPHipIconRight\")" CACPHipIconRightEdit1;
+						intField -h 25 -w 40 -ann "设置最小帧" -value 0 CACPHipIconRightEdit2;
+						text -label "-" CACPHipIconRightEdit3;
+						intField -h 25 -w 40 -ann "设置最大帧" -value 0 CACPHipIconRightEdit4;
+					setParent ..;
+					rowColumnLayout -adj 1 -numberOfColumns 4 -columnWidth 1 230 -columnWidth 2 40 -columnWidth 3 10 -columnWidth 4 40 CACPFootIconLeftEdit;
+						textFieldButtonGrp -editable 0 -columnWidth3 110 80 40 -columnAlign 1 center -ann "设置按钮显示名/获取帧区间" -label "CACPFootIconLeft" -text "右脚" -buttonLabel "获取" -buttonCommand "CACPGetKeyScale(\"CACPFootIconLeft\")" CACPFootIconLeftEdit1;
+						intField -h 25 -w 40 -ann "设置最小帧" -value 0 CACPFootIconLeftEdit2;
+						text -label "-" CACPFootIconLeftEdit3;
+						intField -h 25 -w 40 -ann "设置最大帧" -value 0 CACPFootIconLeftEdit4;
+					setParent ..;
+					rowColumnLayout -adj 1 -numberOfColumns 4 -columnWidth 1 230 -columnWidth 2 40 -columnWidth 3 10 -columnWidth 4 40 CACPFootIconRightEdit;
+						textFieldButtonGrp -editable 0 -columnWidth3 110 80 40 -columnAlign 1 center -ann "设置按钮显示名/获取帧区间" -label "CACPFootIconRight" -text "左脚" -buttonLabel "获取" -buttonCommand "CACPGetKeyScale(\"CACPFootIconRight\")" CACPFootIconRightEdit1;
+						intField -h 25 -w 40 -ann "设置最小帧" -value 0 CACPFootIconRightEdit2;
+						text -label "-" CACPFootIconRightEdit3;
+						intField -h 25 -w 40 -ann "设置最大帧" -value 0 CACPFootIconRightEdit4;
+					setParent ..;
+				setParent ..;
+				columnLayout CACPPart1columnLayout;
+					button -c "CACPPart1AddCom" -width 55 -height 20 -ann "增加额外部位" -label "增加" CACPPart1Add;
+					button -c "CACPPart1ReduceCom" -width 55 -height 20 -ann "减少额外部位" -label "减少" CACPPart1Reduce;
+					button -c "CACPPart1DefaultCom" -width 55 -height 20 -ann "重置为默认部位" -label "重置" CACPPart1Default;
+					button -c "CACPPart1ConfirmCom" -width 55 -height 20 -ann "确认按钮显示名" -label "确认" CACPPart1Confirm;
+					separator -height 5 -style "none";
+					text -width 55 -align center -label "- 多 选 -" CACPMultipletext;
+					intField -w 55 -ann "设置多选部位个数" -value 2 CACPMultipleintField;
+					separator -height 5 -style "none";
+					button -c "CACPMultipleAddCom" -width 55 -height 20 -ann "增加指定多选数据" -label "增加" CACPMultipleAdd;
+					button -c "CACPMultipleReduceCom" -width 55 -height 20 -ann "移除指定多选数据" -label "移除" CACPMultipleReduce;
+					text -height 15 -width 55 -label " - - - - - - - ";
+					button -c "CACPPart1SaveCom" -width 55 -height 20 -ann "保存所有数据" -label "保存" CACPPart1Save;
+				setParent ..;
+			setParent ..;
+		tabLayout -edit
+		-tabLabel "CACPPart1" "基础数据" 
+		CACPEdittabLayout;
+	setParent ..;
+	showWindow CheckAnimationCtrlPanelWindow;
+}
+//检查所有
+global proc CACPCheckAll ()
+{
+	float $MinKey = 0;
+	float $MaxKey = 0;
+	string $KeyedObjects[] = GetAllKeyedObjects ();
+	for ($KeyedObject in $KeyedObjects)
+	{
+		float $keyTimes[] = getObjectKeyframeRange ( $KeyedObject );
+		if ($keyTimes[0] < $MinKey)
+		{
+			$MinKey = $keyTimes[0];
+		}
+		if ($keyTimes[1] > $MaxKey)
+		{
+			$MaxKey = $keyTimes[1];
+		}
+	}
+	playbackOptions -ast $MinKey -aet $MaxKey -min $MinKey -max $MaxKey;
+}
+
+//播放图标改变
+global proc CACPChangePlayIcon ( string $direction )
+{
+	string $Oppositedirection = "L";
+	if ($direction == "L")
+	{
+		$Oppositedirection = "R";
+	}
+	if (`symbolButton -q -image  ("CACPPlay" + $direction)` == (`asInstallScriptLocation` + "Icon/Play_" + $direction + ".svg"))
+	{
+		if (`symbolButton -q -image  ("CACPPlay" + $Oppositedirection)` == (`asInstallScriptLocation` + "Icon/Play_" + $Oppositedirection + ".svg"))
+		{
+			symbolButton -e-image (`asInstallScriptLocation` + "Icon/RoundedSquares.svg") ("CACPPlay" + $direction);
+		}else
+		{
+			if ($direction == "L")
+			{
+				playButtonStepForward;
+			}else
+			{
+				playButtonStepBackward;
+			}
+			symbolButton -e-image (`asInstallScriptLocation` + "Icon/Play_" + $Oppositedirection + ".svg") ("CACPPlay" + $Oppositedirection);
+			symbolButton -e-image (`asInstallScriptLocation` + "Icon/RoundedSquares.svg") ("CACPPlay" + $direction);
+		}
+	}else
+	{
+		symbolButton -e-image (`asInstallScriptLocation` + "Icon/Play_" + $direction + ".svg") ("CACPPlay" + $direction);
+	}
+}
+//保存所有数据
+global proc CACPPart1SaveCom ()
+{
+	global string $CACPDatePath;
+	string $CACPDateConfigPath = `substring $CACPDatePath 1 (size($CACPDatePath)-4)` + "config";
+	string $Content = "";
+	//获取多选数据分组
+	string $CACPEdittabLayoutChilds[] = `tabLayout -q -childArray CACPEdittabLayout`;
+	$CACPEdittabLayoutChilds = sort($CACPEdittabLayoutChilds);
+	for ($CACPEdittabLayoutChild in $CACPEdittabLayoutChilds)
+	{
+		$Content = $Content + `substitute "CACPPart" $CACPEdittabLayoutChild ""` + ";";
+	}
+	$Content = $Content + "\n";
+	fwriteAllText ( $CACPDateConfigPath, $Content );
+	//获取基础数据
+	string $CACPButtonEidtNnames[] = `scrollLayout -q -childArray CACPPart1scrollLayout`;
+	$Content = "";
+	for ($CACPButtonEidtNname in $CACPButtonEidtNnames)
+	{
+		$Content = $Content + "1;";
+		$Content = $Content + `textFieldButtonGrp -q -label ($CACPButtonEidtNname + "1")` + ";";
+		$Content = $Content + `intField -q -value ($CACPButtonEidtNname + "2")`;
+		$Content = $Content + "-";
+		$Content = $Content + `intField -q -value ($CACPButtonEidtNname + "4")` + ";";
+		$Content = $Content + `textFieldButtonGrp -q -text ($CACPButtonEidtNname + "1")` + ";\n";
+	}
+	writeFile ( $CACPDateConfigPath, $Content );
+	//获取多选数据
+	for ($CACPEdittabLayoutChild in $CACPEdittabLayoutChilds)
+	{
+		if ($CACPEdittabLayoutChild != "CACPPart1")
+		{
+			int $PartNum = `substitute "CACPPart" $CACPEdittabLayoutChild ""`;
+			$Content = "";
+			string $CACPMultipleEidtNnames[] = `scrollLayout -q -childArray ($CACPEdittabLayoutChild + "scrollLayout")`;
+			for ($CACPMultipleEidtNname in $CACPMultipleEidtNnames)
+			{
+				if (`textFieldButtonGrp -q -text ($CACPMultipleEidtNname + "1")` == "")
+				{
+					continue;
+				}else
+				{
+					$Content = $Content + $PartNum + ";";
+					$Content = $Content + `textFieldButtonGrp -q -text ($CACPMultipleEidtNname + "1")` + ";";
+					$Content = $Content + `intField -q -value ($CACPMultipleEidtNname + "2")`;
+					$Content = $Content + "-";
+					$Content = $Content + `intField -q -value ($CACPMultipleEidtNname + "4")` + ";";
+					$Content = $Content + ";\n";
+				}
+			}
+			writeFile ( $CACPDateConfigPath, $Content );
+		}
+	}
+	CACPLoadAimDate ( $CACPDateConfigPath );
+}
+//确认按钮显示名
+global proc CACPPart1ConfirmCom ()
+{
+	//获取当前已有额外部位数量
+	$CACPButtonNum = `gridLayout -q -numberOfChildren CACPgridLayout`;
+	for ($i=0; $i<$CACPButtonNum; $i++)
+	{
+		string $ButtonName = `textFieldButtonGrp -q -text ("CACPButton" + $i + "Edit1")`;
+		button -e -label $ButtonName ("CACPButton" + $i);
+	}
+}
+//清除本次加载数据路径
+global proc CACPCleanNowDate ()
+{
+	global string $CACPDatePath;
+	$CACPDatePath = "";
+	if (`window -exists "CACPEidtExtraWindow"`)
+	{
+		deleteUI -window "CACPEidtExtraWindow";
+	}
+	if (`window -exists "CACPHelpWindow"`)
+	{
+		deleteUI -window "CACPHelpWindow";
+	}
+}
+//增加额外部位
+global proc CACPPart1AddCom ()
+{
+	//获取当前已有额外部位数量
+	int $CACPButtonNum = `gridLayout -q -numberOfChildren CACPgridLayout`;
+	button -po 0 -bgc 0.5 0.5 0.5 -c ("CACPFilterParts ( \"CACPButton" + $CACPButtonNum + "\" )") -p CACPgridLayout ("CACPButton" + $CACPButtonNum);
+	rowColumnLayout -adj 1 -numberOfColumns 4 -columnWidth 1 230 -columnWidth 2 40 -columnWidth 3 10 -columnWidth 4 40 -p CACPPart1scrollLayout ("CACPButton" + $CACPButtonNum + "Edit");
+	textFieldButtonGrp -columnWidth3 110 80 40 -columnAlign 1 center -ann "设置按钮显示名/获取帧区间" -label ("CACPButton" + $CACPButtonNum) -text "" -buttonLabel "获取" -buttonCommand ("CACPGetKeyScale(\"CACPButton" + $CACPButtonNum + "\")") -p ("CACPButton" + $CACPButtonNum + "Edit") ("CACPButton" + $CACPButtonNum + "Edit1");
+	intField -h 25 -w 40 -ann "设置最小帧" -value 0 -p ("CACPButton" + $CACPButtonNum + "Edit") ("CACPButton" + $CACPButtonNum + "Edit2");
+	text -label "-" -p ("CACPButton" + $CACPButtonNum + "Edit") ("CACPButton" + $CACPButtonNum + "Edit3");
+	intField -h 25 -w 40 -ann "设置最大帧" -value 0 -p ("CACPButton" + $CACPButtonNum + "Edit") ("CACPButton" + $CACPButtonNum + "Edit4");
+}
+//减少额外部位
+global proc CACPPart1ReduceCom ()
+{
+	//获取当前已有额外部位数量
+	int $CACPButtonNum = `gridLayout -q -numberOfChildren CACPgridLayout` -1;
+	if ($CACPButtonNum<0)
+	{
+		warning ("已无额外部位！！！\n");
+	}else{
+		deleteUI -control ("CACPButton" + $CACPButtonNum);
+		deleteUI -control ("CACPButton" + $CACPButtonNum + "Edit4");
+		deleteUI -control ("CACPButton" + $CACPButtonNum + "Edit3");
+		deleteUI -control ("CACPButton" + $CACPButtonNum + "Edit2");
+		deleteUI -control ("CACPButton" + $CACPButtonNum + "Edit1");
+		deleteUI -layout ("CACPButton" + $CACPButtonNum + "Edit");
+	}
+}
+//重置基础数据
+global proc CACPPart1DefaultCom ()
+{
+	//获取当前已有额外部位数量
+	int $CACPButtonNum = `gridLayout -q -numberOfChildren CACPgridLayout`;
+	for ($i=0; $i<$CACPButtonNum; $i++)
+	{
+		deleteUI -control ("CACPButton" + $i);
+	}
+	//获取当前已有的额外部位编辑数据数量
+	int $CACPButtonEidtNum = `scrollLayout -q -numberOfChildren CACPPart1scrollLayout` -10;
+	for ($i=0; $i<$CACPButtonEidtNum; $i++)
+	{
+		deleteUI -control ("CACPButton" + $i + "Edit4");
+		deleteUI -control ("CACPButton" + $i + "Edit3");
+		deleteUI -control ("CACPButton" + $i + "Edit2");
+		deleteUI -control ("CACPButton" + $i + "Edit1");
+		deleteUI -layout ("CACPButton" + $i + "Edit");
+	}
+	//获取当前已有多选数据数量
+	string $CACPEdittabLayoutChilds[] = `tabLayout -q -childArray CACPEdittabLayout`;
+	for ($CACPEdittabLayoutChild in $CACPEdittabLayoutChilds) 
+	{
+		if($CACPEdittabLayoutChild != "CACPPart1")
+		{
+			deleteUI -layout $CACPEdittabLayoutChild;
+		}
+	}
+	global string $CACPDatePath;
+	if ($CACPDatePath != "")
+	{
+		string $CACPDateConfigPath = `substring $CACPDatePath 1 (size($CACPDatePath)-4)` + "config";
+		if (`filetest -f $CACPDateConfigPath`)
+		{
+			CACPLoadAimDate ( $CACPDateConfigPath );
+			//获取基础数据
+			//获取当前已有额外部位数量
+			$CACPButtonNum = `gridLayout -q -numberOfChildren CACPgridLayout`;
+			for ($i=0; $i<$CACPButtonNum; $i++)
+			{
+				rowColumnLayout -adj 1 -numberOfColumns 4 -columnWidth 1 230 -columnWidth 2 40 -columnWidth 3 10 -columnWidth 4 40 -p CACPPart1scrollLayout ("CACPButton" + $i + "Edit");
+				textFieldButtonGrp -columnWidth3 110 80 40 -columnAlign 1 center -ann "设置按钮显示名/获取帧区间" -label ("CACPButton" + $i) -text "" -buttonLabel "获取" -buttonCommand ("CACPGetKeyScale(\"CACPButton" + $i + "\")") -p ("CACPButton" + $i + "Edit") ("CACPButton" + $i + "Edit1");
+				intField -h 25 -w 40 -ann "设置最小帧" -value 0 -p ("CACPButton" + $i + "Edit") ("CACPButton" + $i + "Edit2");
+				text -label "-" -p ("CACPButton" + $i + "Edit") ("CACPButton" + $i + "Edit3");
+				intField -h 25 -w 40 -ann "设置最大帧" -value 0 -p ("CACPButton" + $i + "Edit") ("CACPButton" + $i + "Edit4");
+			}
+			global string $CACPLoadAimDateType1[];
+			global string $CACPLoadAimDateTime1[];
+			global string $CACPLoadAimDateName1[];
+			for ($i=0; $i<size($CACPLoadAimDateType1); $i++)
+			{
+				string $TimeScale[];
+				tokenize($CACPLoadAimDateTime1[$i],"-",$TimeScale);
+				int $MinValue = $TimeScale[0];
+				int $MaxValue = $TimeScale[1];
+				if (`gmatch $CACPLoadAimDateType1[$i] "*Button*"`)
+				{
+					textFieldButtonGrp -e -text $CACPLoadAimDateName1[$i] ($CACPLoadAimDateType1[$i] + "Edit1");
+				}
+				intField -e -value $MinValue ($CACPLoadAimDateType1[$i] + "Edit2");
+				intField -e -value $MaxValue ($CACPLoadAimDateType1[$i] + "Edit4");
+			}
+			//获取多选数据
+			int $CACPCheckPartNumCount = `optionMenu -q -numberOfItems CACPCheckPartNum`;
+			for ($i=0; $i<$CACPCheckPartNumCount; $i++)
+			{
+				int $PartValue = `menuItem -q -label ("CACPCheckPartNummenuItem" + $i)`;
+				if ($PartValue != 1)
+				{
+					intField -e -value $PartValue CACPMultipleintField;
+					CACPMultipleAddCom();
+					CACPMultipDefaultCom ( $PartValue );
+				}
+			}
+		}
+	}
+}
+//增加多选数据
+global proc CACPMultipleAddCom ()
+{
+	//获取多选数据多选部位数
+	int $parts = `intField -q -value CACPMultipleintField`;
+	string $CACPEdittabLayoutChilds[] = `tabLayout -q -childArray CACPEdittabLayout`;
+	//查询是否已经存在该数据
+	int $Exist = stringArrayFind ( ("CACPPart" + $parts), 0 , $CACPEdittabLayoutChilds );
+	if ($parts < 2)
+	{
+		warning ("多选值需大于1！！！\n");
+	}else
+	{
+		if ($Exist == 1)
+		{
+			warning ("已存在多部位(" + $parts + ")数据！！！\n");
+		}else
+		{
+			rowColumnLayout -w 401 -numberOfColumns 2 -columnWidth 1 340 -columnWidth 2 55 -p CACPEdittabLayout ("CACPPart" + $parts);
+				scrollLayout -w 340 -h 200 -p ("CACPPart" + $parts) ("CACPPart" + $parts + "scrollLayout");
+				columnLayout -p ("CACPPart" + $parts) ("CACPPart" + $parts + "columnLayout");
+					button -p ("CACPPart" + $parts + "columnLayout") -c ("CACPMultipAddCom( " + $parts + ")") -width 55 -height 45 -ann "增加多选数据" -label "增加" ("CACPPart" + $parts + "Add");
+					separator -p ("CACPPart" + $parts + "columnLayout") -height 10 -style "none";
+					button -p ("CACPPart" + $parts + "columnLayout") -c ("CACPMultipReduceCom( " + $parts + ")") -width 55 -height 45 -ann "减少多选数据" -label "减少" ("CACPPart" + $parts + "Reduce");
+					separator -p ("CACPPart" + $parts + "columnLayout") -height 10 -style "none";
+					button -p ("CACPPart" + $parts + "columnLayout") -c ("CACPMultipDefaultCom( " + $parts + ")") -width 55 -height 45 -ann "重置多选数据" -label "重置" ("CACPPart" + $parts + "Default");
+					text -p ("CACPPart" + $parts + "columnLayout") -height 13 -width 55 -label " - - - - - - - ";
+					button -p ("CACPPart" + $parts + "columnLayout") -c ("CACPMultipDeleteCom( " + $parts + ")") -width 55 -height 30 -ann "删除多选数据" -label "删除" ("CACPPart" + $parts + "Delete");
+			tabLayout -edit -tabLabel ("CACPPart" + $parts) ("多部位(" + $parts + ")") CACPEdittabLayout;
+		}
+	}
+}
+//增加多选数据
+global proc CACPMultipAddCom ( int $Num )
+{
+	int $DateNum = `scrollLayout -q -numberOfChildren ("CACPPart" + $Num + "scrollLayout")`;
+	rowColumnLayout -p ("CACPPart" + $Num + "scrollLayout") -adj 1 -numberOfColumns 4 -columnWidth 1 230 -columnWidth 2 40 -columnWidth 3 10 -columnWidth 4 40 ("CACPCACPPart" + $Num + "Date" + $DateNum + "Edit");
+		textFieldButtonGrp -p ("CACPCACPPart" + $Num + "Date" + $DateNum + "Edit") -columnWidth3 60 130 40 -columnAlign 1 center -ann "获取启动按键和帧区间" -label "启动按键：" -text "" -buttonLabel "获取" -buttonCommand ("CACPGetMultipDate(" + $Num + ", " + $DateNum + ")") ("CACPCACPPart" + $Num + "Date" + $DateNum + "Edit1");
+		intField -p ("CACPCACPPart" + $Num + "Date" + $DateNum + "Edit") -h 25 -w 40 -ann "设置最小帧" -value 0 ("CACPCACPPart" + $Num + "Date" + $DateNum + "Edit2");
+		text -p ("CACPCACPPart" + $Num + "Date" + $DateNum + "Edit") -label "-" ("CACPCACPPart" + $Num + "Date" + $DateNum + "Edit3");
+		intField -p ("CACPCACPPart" + $Num + "Date" + $DateNum + "Edit") -h 25 -w 40 -ann "设置最大帧" -value 0 ("CACPCACPPart" + $Num + "Date" + $DateNum + "Edit4");
+}
+//减少多选数据
+global proc CACPMultipReduceCom ( int $Num )
+{
+	//获取当前已有额外部位数量
+	int $DateNum = `scrollLayout -q -numberOfChildren ("CACPPart" + $Num + "scrollLayout")` -1;
+	if ($DateNum<0)
+	{
+		warning ("已无额外部位！！！\n");
+	}else{
+		deleteUI -control ("CACPCACPPart" + $Num + "Date" + $DateNum + "Edit4");
+		deleteUI -control ("CACPCACPPart" + $Num + "Date" + $DateNum + "Edit3");
+		deleteUI -control ("CACPCACPPart" + $Num + "Date" + $DateNum + "Edit2");
+		deleteUI -control ("CACPCACPPart" + $Num + "Date" + $DateNum + "Edit1");
+		deleteUI -layout ("CACPCACPPart" + $Num + "Date" + $DateNum + "Edit");
+	}
+}
+//重置多选数据
+global proc CACPMultipDefaultCom ( int $Num )
+{
+	string $CACPPartChilds[] = `scrollLayout -q -childArray ("CACPPart" + $Num + "scrollLayout")`;
+	for ($i=0; $i<size($CACPPartChilds); $i++) 
+	{
+		deleteUI -layout ("CACPCACPPart" + $Num + "Date" + $i + "Edit");
+	}
+	global string $CACPLoadAimDateTypeNow[];
+	global string $CACPLoadAimDateTimeNow[];
+	$CACPLoadAimDateTypeNow = {};
+	$CACPLoadAimDateTimeNow = {};
+	eval ("global string $CACPLoadAimDateType" + $Num + "[];");
+	eval ("global string $CACPLoadAimDateTime" + $Num + "[];");
+	eval ("$CACPLoadAimDateTypeNow = $CACPLoadAimDateType" + $Num + ";");
+	eval ("$CACPLoadAimDateTimeNow = $CACPLoadAimDateTime" + $Num + ";");
+	for ($a=0; $a<size($CACPLoadAimDateTypeNow); $a++)
+	{
+		string $TimeScale[];
+		tokenize($CACPLoadAimDateTimeNow[$a],"-",$TimeScale);
+		int $MinValue = $TimeScale[0];
+		int $MaxValue = $TimeScale[1];
+		CACPMultipAddCom($Num);
+		textFieldButtonGrp -e -text $CACPLoadAimDateTypeNow[$a] ("CACPCACPPart" + $Num + "Date" + $a + "Edit1");
+		intField -e -value $MinValue ("CACPCACPPart" + $Num + "Date" + $a + "Edit2");
+		intField -e -value $MaxValue ("CACPCACPPart" + $Num + "Date" + $a + "Edit4");
+	}
+}
+//删除多选数据面板
+global proc CACPMultipDeleteCom ( int $Num )
+{
+	deleteUI -layout ("CACPPart" + $Num);
+}
+//移除多选数据
+global proc CACPMultipleReduceCom ()
+{
+	int $parts = `intField -q -value CACPMultipleintField`;
+	CACPMultipDeleteCom ( $parts );
+}
+//获取多选部位按钮和帧区间
+global proc CACPGetMultipDate ( int $PlaneNum, int $DateNum )
+{
+	global string $DownButtonNames[];
+	if (size($DownButtonNames) == $PlaneNum)
+	{
+		string $TextDownButtonNames = stringArrayToString( $DownButtonNames, ",");
+		int $MinValue = `playbackOptions -q -min`;
+		int $MaxValue = `playbackOptions -q -max`;
+		textFieldButtonGrp -e -text $TextDownButtonNames ("CACPCACPPart" + $PlaneNum + "Date" + $DateNum + "Edit1");
+		intField -e -value $MinValue ("CACPCACPPart" + $PlaneNum + "Date" + $DateNum + "Edit2");
+		intField -e -value $MaxValue ("CACPCACPPart" + $PlaneNum + "Date" + $DateNum + "Edit4");
+	}
+	if (size($DownButtonNames) < $PlaneNum)
+	{
+		warning ("当前选取按钮不足！！！");
+	}
+	if (size($DownButtonNames) > $PlaneNum)
+	{
+		warning ("当前选取按钮过多！！！");
+	}
+}
+//获取部位帧区间
+global proc CACPGetKeyScale ( string $Name )
+{
+	int $MinValue = `playbackOptions -q -min`;
+	int $MaxValue = `playbackOptions -q -max`;
+	intField -e -value $MinValue ($Name + "Edit2");
+	intField -e -value $MaxValue ($Name + "Edit4");
+}
+//动画数据列表
+global proc CACPoptionMenuAdd ()
+{
+	menuItem -label "外部数据" -ann "外部数据" CACPmenuItem0;
+	string $CACPDatePath = `asInstallScriptLocation` + "PublicFiles/Dates/AnimationCheckPanel/";
+	string $DateNames[] = `getFileList -folder $CACPDatePath -filespec "*.json"`;
+	for ($i=1; $i<=size($DateNames); $i++)
+	{
+		menuItem -label $DateNames[$i-1] -ann $DateNames[$i-1] ("CACPmenuItem" + $i);
+	}
+}
+global string $CACPDatePath;
+//加载外部动画数据
+global proc LoadOutAimDate ()
+{
+	global string $CACPDatePath;
+	int $SelectNum = `optionMenu -q -select CACPoptionMenu`;
+	if ($SelectNum != 1)
+	{
+		$CACPDatePath = `asInstallScriptLocation` + "PublicFiles/Dates/AnimationCheckPanel/" + `menuItem -q -label ("CACPmenuItem" + ($SelectNum-1))`;
+		string $CACPDateConfigPath = `substring $CACPDatePath 1 (size($CACPDatePath)-4)` + "config";
+		if (!`filetest -e $CACPDateConfigPath`)
+		{
+			$result = `confirmDialog -messageAlign "center" -title "警告！" -message "由于未知原因插件中内置的配置文件丢失，是否继续。" -button "继续" -button "取消" -icon warning`;
+			if ($result == "继续")
+			{
+				ImportSelectedKeyframes ( $CACPDatePath );
+			}else{
+				warning ("已取消载入数据！\n");
+			}
+		}else
+		{
+			ImportSelectedKeyframes ( $CACPDatePath );
+			CACPLoadAimDate ( $CACPDateConfigPath );
+		}
+	}else
+	{
+		$CACPDatePath = `fileDialog -title "载入外部数据" -directoryMask "/usr/u//*.json"`;
+		if ($CACPDatePath == "")
+		{
+			warning ("已取消载入外部数据！\n");
+		}else
+		{
+			string $importfileConfigPath = `substring $CACPDatePath 1 (size($CACPDatePath)-4)` + "config";
+			if (!`filetest -e $importfileConfigPath`)
+			{
+				$result = `confirmDialog -messageAlign "center" -title "警告！" -message "该外部数据同目录下无对应配置（.config）文件，是否继续。" -button "继续" -button "取消" -icon warning`;
+				if ($result == "继续")
+				{
+					ImportSelectedKeyframes ( $CACPDatePath );
+				}else{
+					warning ("已取消载入数据！\n");
+				}
+			}else
+			{
+				ImportSelectedKeyframes ( $CACPDatePath );
+				CACPLoadAimDate ( $importfileConfigPath );
+			}
+		}
+	}
+}
+//卸载动画
+global proc CACPUnLoadAimDate ()
+{
+	eval ("source \"" + `asInstallScriptLocation` + "Scripts/DeleteAllKey.mel\"");
+}
+//启动编辑模式
+global proc CACPEditAimDate ()
+{
+	if (`button -q -po CACPEditAimDate` == 0)
+	{
+		global string $CACPDatePath;
+		if ($CACPDatePath == "")
+		{
+
+			$result = `confirmDialog -messageAlign "center" -title "警告！" -message "当前并未导入动画数据，请载入一个数据文件或创建一个空数据文件后编辑！" -button "载入" -button "创建" -button "取消" -icon warning`;
+			if ($result == "载入")
+			{
+				$CACPDatePath = `fileDialog -title "载入外部数据" -directoryMask "/usr/u//*.json"`;
+				if ($CACPDatePath == "")
+				{
+					warning ("已取消载入外部数据！\n");
+				}else
+				{
+					string $importfileConfigPath = `substring $CACPDatePath 1 (size($CACPDatePath)-4)` + "config";
+					if (!`filetest -e $importfileConfigPath`)
+					{
+						$result = `confirmDialog -messageAlign "center" -title "警告！" -message "该外部数据同目录下无对应配置（.config）文件，是否继续。" -button "继续" -button "取消" -icon warning`;
+						if ($result == "继续")
+						{
+							ImportSelectedKeyframes ( $CACPDatePath );
+							button -e -po 1 -bgc 0.176 0.789 0.176 CACPEditAimDate;
+							tabLayout -e -visible 1 CACPEdittabLayout;
+							window -e -s 1 CheckAnimationCtrlPanelWindow;
+							CACPPart1DefaultCom ();
+							CACPEidtExtra ();
+						}else{
+							warning ("已取消载入数据！\n");
+						}
+					}else
+					{
+						ImportSelectedKeyframes ( $CACPDatePath );
+						CACPLoadAimDate ( $importfileConfigPath );
+					}
+				}
+			}
+			if ($result == "创建")
+			{
+				string $exportfilePath[] = `fileDialog2 -caption "创建空数据" -fileFilter "JSON Files (*.json)"`;
+				if (size($exportfilePath) == 0 || $exportfilePath[0] == "")
+				{
+					warning ("已取消创建！\n");
+				}else
+				{
+					$CACPDatePath = $exportfilePath[0];
+					button -e -po 1 -bgc 0.176 0.789 0.176 CACPEditAimDate;
+					tabLayout -e -visible 1 CACPEdittabLayout;
+					window -e -s 1 CheckAnimationCtrlPanelWindow;
+					CACPPart1DefaultCom ();
+					CACPEidtExtra ();
+				}
+			}
+		}else
+		{
+			button -e -po 1 -bgc 0.176 0.789 0.176 CACPEditAimDate;
+			tabLayout -e -visible 1 CACPEdittabLayout;
+			window -e -s 1 CheckAnimationCtrlPanelWindow;
+			CACPPart1DefaultCom ();
+			CACPEidtExtra ();
+		}
+	}else
+	{
+		button -e -po 0 -bgc 0.366 0.366 0.366 CACPEditAimDate;
+		tabLayout -e -visible 0 CACPEdittabLayout;
+		window -e -h (`rowColumnLayout -q -h CACProwColumnLayout1` + `rowColumnLayout -q -h CACProwColumnLayout2` + 9) CheckAnimationCtrlPanelWindow;
+		window -e -s 0 CheckAnimationCtrlPanelWindow;
+		if (`window -exists "CACPEidtExtraWindow"`)
+		{
+			deleteUI -window "CACPEidtExtraWindow";
+		}
+	}
+}
+//恢复按键默认状态
+global proc CACPRestoreDefault ()
+{
+	//恢复按键默认状态
+	symbolButton -e -po 0 -en 1 -image (`asInstallScriptLocation` + "Icon/CACPHandIconLeft.svg") CACPHandIconLeft;
+	symbolButton -e -po 0 -en 1 -image (`asInstallScriptLocation` + "Icon/CACPHandIconRight.svg") CACPHandIconRight;
+	symbolButton -e -po 0 -en 1 -image (`asInstallScriptLocation` + "Icon/CACPElbowIconLeft.svg") CACPElbowIconLeft;
+	symbolButton -e -po 0 -en 1 -image (`asInstallScriptLocation` + "Icon/CACPElbowIconRight.svg") CACPElbowIconRight;
+	symbolButton -e -po 0 -en 1 -image (`asInstallScriptLocation` + "Icon/CACPFootIconLeft.svg") CACPFootIconLeft;
+	symbolButton -e -po 0 -en 1 -image (`asInstallScriptLocation` + "Icon/CACPFootIconRight.svg") CACPFootIconRight;
+	symbolButton -e -po 0 -en 1 -image (`asInstallScriptLocation` + "Icon/CACPHipIconLeft.svg") CACPHipIconLeft;
+	symbolButton -e -po 0 -en 1 -image (`asInstallScriptLocation` + "Icon/CACPHipIconRight.svg") CACPHipIconRight;
+	symbolButton -e -po 0 -en 1 -image (`asInstallScriptLocation` + "Icon/CACPHeadIcon.svg") CACPHeadIcon;
+	symbolButton -e -po 0 -en 1 -image (`asInstallScriptLocation` + "Icon/CACPSpineIcon.svg") CACPSpineIcon;
+	button -e -po 0 -bgc 0.5 0.5 0.5 CACPAllButton;
+	global int $DownButtonNum;
+	global string $PreButtonNames[];
+	global string $DownButtonNames[];
+	$DownButtonNum = 0;
+	$PreButtonNames = {};
+	$DownButtonNames = {};
+	string $CACPButtonName[] = `gridLayout -q -childArray CACPgridLayout`;
+	for ($Name in $CACPButtonName)
+	{
+		button -e -po 0 -en 1 -bgc 0.5 0.5 0.5 $Name;
+	}
+}
+global string $CACPLoadAimDateType1[];
+global string $CACPLoadAimDateTime1[];
+global string $CACPLoadAimDateName1[];
+$CACPLoadAimDateType1 = {};
+$CACPLoadAimDateTime1 = {};
+$CACPLoadAimDateName1 = {};
+//载入动画数据
+global proc CACPLoadAimDate ( string $Path )
+{
+	//初始化
+	CACPRestoreDefault ();
+	string $CACPButtonName[] = `gridLayout -q -childArray CACPgridLayout`;
+	for ($Name in $CACPButtonName)
+	{
+		deleteUI -control $Name;
+	}
+	int $CACPCheckPartNumCount = `optionMenu -q -numberOfItems CACPCheckPartNum`;
+	for ($i=0; $i<$CACPCheckPartNumCount; $i++)
+	{
+		deleteUI -menuItem ("CACPCheckPartNummenuItem" + $i);
+	}
+
+	string $CheckPastNum[] = {};
+	string $AllLines[] = `freadAllLines($Path)`;
+	tokenize($AllLines[0],";",$CheckPastNum);
+	for ($i=0; $i<size($CheckPastNum); $i++)
+	{
+		if (`whatIs ("$CACPLoadAimDateType" + $CheckPastNum[$i])` != "string[] variable")
+		{
+			eval ("global string $CACPLoadAimDateType" + $CheckPastNum[$i] + "[];"); 
+		}else
+		{
+			//eval ("global string $CACPLoadAimDateType" + $CheckPastNum[$i] + "[];"); 
+			eval ("$CACPLoadAimDateType" + $CheckPastNum[$i] + " = {};"); 
+		}
+		if (`whatIs ("$CACPLoadAimDateTime" + $CheckPastNum[$i])` != "string[] variable")
+		{
+			eval ("global string $CACPLoadAimDateTime" + $CheckPastNum[$i] + "[];"); 
+		}else
+		{
+			//eval ("global string $CACPLoadAimDateTime" + $CheckPastNum[$i] + "[];"); 
+			eval ("$CACPLoadAimDateTime" + $CheckPastNum[$i] + " = {};"); 
+		}
+		menuItem -p CACPCheckPartNum -label $CheckPastNum[$i] ("CACPCheckPartNummenuItem" + $i);
+	}
+	global string $CACPLoadAimDateName1[];
+	$CACPLoadAimDateName1 = {};
+	for ($i=1; $i<size($AllLines); $i++)
+	{
+		string $LineInformation[];
+		tokenize($AllLines[$i],";",$LineInformation);
+		eval ("$CACPLoadAimDateType" + $LineInformation[0] + "[size($CACPLoadAimDateType" + $LineInformation[0] + ")] = \"" + $LineInformation[1] + "\";"); 
+		eval ("$CACPLoadAimDateTime" + $LineInformation[0] + "[size($CACPLoadAimDateTime" + $LineInformation[0] + ")] = \"" + $LineInformation[2] + "\";");
+		//$CheckPastNum[size($CheckPastNum)] = $LineInformation[0];
+		if ($LineInformation[0] == 1)
+		{
+			$CACPLoadAimDateName1[size($CACPLoadAimDateName1)] = $LineInformation[3];
+		}
+		if (`gmatch $LineInformation[1] "CACPButton?"` && $LineInformation[0] == 1)
+		{
+			button -po 0 -label $LineInformation[3] -bgc 0.5 0.5 0.5 -c ("CACPFilterParts ( \"" + $LineInformation[1] + "\" )") -p CACPgridLayout $LineInformation[1];
+		}
+	}
+	//$CheckPastNum = stringArrayRemoveDuplicates($CheckPastNum);
+}
+global int $DownButtonNum = 0;
+global int $DownButtonIndexs[] = {};
+global string $DownButtonNames[] = {};
+global string $PreButtonNames[] = {};
+global string $CACPLoadAimDateTypeNow[];
+global string $CACPLoadAimDateTimeNow[];
+//显示部位
+global proc CACPFilterParts ( string $ButtonName )
+{
+	//非编辑模式
+	if (`button -q -po CACPEditAimDate` == 0)
+	{
+		global int $DownButtonNum;
+		global string $CACPLoadAimDateType1[];
+		global string $CACPLoadAimDateTime1[];
+		int $SelectType = `optionMenu -q -value CACPCheckPartNum`;
+		if ( $SelectType == 1 )
+		{
+			if (`gmatch $ButtonName "*Icon*"`)
+			{
+				if ($DownButtonNum == 0)
+				{
+					symbolButton -e -po 1 -image (`asInstallScriptLocation` + "Icon/" + $ButtonName + "ON.svg") $ButtonName;
+					$DownButtonNum = $DownButtonNum +1;
+				}else
+				{
+					for ($element in $CACPLoadAimDateType1)
+					{
+						if (`gmatch $element "*Icon*"`)
+						{
+							symbolButton -e -po 0 -image (`asInstallScriptLocation` + "Icon/" + $element + ".svg") $element;
+						}else
+						{
+							button -e -po 0 -bgc 0.5 0.5 0.5 $element;
+						}
+					}
+					symbolButton -e -po 1 -image (`asInstallScriptLocation` + "Icon/" + $ButtonName + "ON.svg") $ButtonName;
+				}
+			}
+			if (`gmatch $ButtonName "*Button*"`)
+			{
+				if ($DownButtonNum == 0)
+				{
+					button -e -po 1 -bgc 0.176 0.789 0.176 $ButtonName;
+					$DownButtonNum = $DownButtonNum +1;
+				}else
+				{
+					for ($element in $CACPLoadAimDateType1)
+					{
+						if (`gmatch $element "*Icon*"`)
+						{
+							symbolButton -e -po 0 -image (`asInstallScriptLocation` + "Icon/" + $element + ".svg") $element;
+						}else
+						{
+							button -e -po 0 -bgc 0.5 0.5 0.5 $element;
+						}
+					}
+					button -e -po 1 -bgc 0.176 0.789 0.176 $ButtonName;
+				}
+			}
+			int $ButtonIndex[] = findStringIndexInArray ( $CACPLoadAimDateType1, $ButtonName, 0 );
+			string $TimeScale[];
+			tokenize($CACPLoadAimDateTime1[$ButtonIndex[0]],"-",$TimeScale);
+			playbackOptions -ast $TimeScale[0] -aet $TimeScale[1] -min $TimeScale[0] -max $TimeScale[1];
+		}else
+		{
+			global string $CACPLoadAimDateTypeNow[];
+			global string $CACPLoadAimDateTimeNow[];
+			$CACPLoadAimDateTypeNow = {};
+			$CACPLoadAimDateTimeNow = {};
+			global string $DownButtonNames[];
+			eval ("global string $CACPLoadAimDateType" + $SelectType + "[];");
+			eval ("global string $CACPLoadAimDateTime" + $SelectType + "[];");
+			eval ("$CACPLoadAimDateTypeNow = $CACPLoadAimDateType" + $SelectType + ";");
+			eval ("$CACPLoadAimDateTimeNow = $CACPLoadAimDateTime" + $SelectType + ";");
+			if (`gmatch $ButtonName "*Icon*"`)
+			{
+				if ($DownButtonNum <= $SelectType)
+				{
+					if (`symbolButton -q -po $ButtonName` == 1)
+					{
+						string $ButtonNameTmp[];
+						$ButtonNameTmp[0] = $ButtonName;
+						string $DownButtonNamesTmp[];
+						$DownButtonNamesTmp = $DownButtonNames;
+						//refresh;
+						symbolButton -e -po 0 -image (`asInstallScriptLocation` + "Icon/" + $ButtonName + ".svg") $ButtonName;
+						//$DownButtonNum = $DownButtonNum -1;
+						global int $DownButtonIndexs[];
+						$DownButtonIndexs = {};
+						$DownButtonNum = 0;
+						CACPRestoreDefault ();
+						$DownButtonNames = stringArrayRemoveExact($ButtonNameTmp,$DownButtonNamesTmp);
+						//print $DownButtonNames;
+						for ($DownButtonName in $DownButtonNames)
+						{
+							if (`gmatch $DownButtonName "*Icon*"`)
+							{
+								symbolButton -e -po 1 -image (`asInstallScriptLocation` + "Icon/" + $DownButtonName + "ON.svg") $DownButtonName;
+							}else
+							{
+								button -e -po 1 -bgc 0.176 0.789 0.176 $DownButtonName;
+							}
+							$DownButtonNum = $DownButtonNum +1;
+							//获取提示可选部位
+								//获取可选部位数据
+							int $ButtonIndex[];
+							//获取当前部位的可选部位
+							$ButtonIndex = findStringIndexInArray ( $CACPLoadAimDateTypeNow, $DownButtonName, 1 );
+							//保留相同可选部位
+							if ($DownButtonNum != 1)
+							{
+								$DownButtonIndexs = keepCommonIntInArray ( $DownButtonIndexs, $ButtonIndex );
+							}else
+							{
+								$DownButtonIndexs = $ButtonIndex;
+							}
+								//print $DownButtonIndexs;
+								//解析可选部位数据
+							global string $PreButtonNames[];
+							$PreButtonNames = {};
+							for ($Index in $DownButtonIndexs)
+							{
+								string $PartsTemp[];
+								tokenize($CACPLoadAimDateTypeNow[$Index],",",$PartsTemp);
+								for ($i=0; $i<size($PartsTemp); $i++)
+								{
+									$PreButtonNames[size($PreButtonNames)] = $PartsTemp[$i];
+								}
+							}
+							$PreButtonNames = stringArrayRemoveDuplicates($PreButtonNames);
+								//禁用不可选对象
+							for ($element in $CACPLoadAimDateType1)
+							{
+								if (`gmatch $element "*Icon*"`)
+								{
+									if (`symbolButton -q -po $element` == 0)
+									{
+										symbolButton -e -en 0 -image (`asInstallScriptLocation` + "Icon/" + $element + ".svg") $element;
+									}
+								}else
+								{
+									if (`button -q -po $element` == 0)
+									{
+										button -e -en 0 -bgc 0.3 0.3 0.3 $element;
+									}
+								}
+							}
+							if (size($PreButtonNames) != 0)
+							{
+								for ($PreButtonName in $PreButtonNames)
+								{
+									if (`gmatch $PreButtonName "*Icon*"`)
+									{
+										if (`symbolButton -q -po $PreButtonName` == 0)
+										{
+											symbolButton -e -en 1 -image (`asInstallScriptLocation` + "Icon/" + $PreButtonName + "PRE.svg") $PreButtonName;
+										}
+									}else
+									{
+										if (`button -q -po $PreButtonName` == 0)
+										{
+											button -e -en 1 -bgc 0.480 0.594 0.699 $PreButtonName;
+										}
+									}
+								}
+							}
+						}
+					}else if (`symbolButton -q -po $ButtonName` == 0 && $DownButtonNum < $SelectType)
+					{
+						symbolButton -e -po 1 -image (`asInstallScriptLocation` + "Icon/" + $ButtonName + "ON.svg") $ButtonName;
+						$DownButtonNum = $DownButtonNum +1;
+						$DownButtonNames[size($DownButtonNames)] = $ButtonName;
+						//获取提示可选部位
+							//获取可选部位数据
+						global int $DownButtonIndexs[];
+						int $ButtonIndex[];
+						//获取当前部位的可选部位
+						$ButtonIndex = findStringIndexInArray ( $CACPLoadAimDateTypeNow, $ButtonName, 1 );
+						//保留相同可选部位
+						if ($DownButtonNum != 1)
+						{
+							$DownButtonIndexs = keepCommonIntInArray ( $DownButtonIndexs, $ButtonIndex );
+						}else
+						{
+							$DownButtonIndexs = $ButtonIndex;
+						}
+							//解析可选部位数据
+						global string $PreButtonNames[];
+						$PreButtonNames = {};
+						for ($Index in $DownButtonIndexs)
+						{
+							string $PartsTemp[];
+							tokenize($CACPLoadAimDateTypeNow[$Index],",",$PartsTemp);
+							for ($i=0; $i<size($PartsTemp); $i++)
+							{
+								$PreButtonNames[size($PreButtonNames)] = $PartsTemp[$i];
+							}
+						}
+						$PreButtonNames = stringArrayRemoveDuplicates($PreButtonNames);
+							//禁用不可选对象
+						for ($element in $CACPLoadAimDateType1)
+						{
+							if (`gmatch $element "*Icon*"`)
+							{
+								if (`symbolButton -q -po $element` == 0)
+								{
+									symbolButton -e -en 0 -image (`asInstallScriptLocation` + "Icon/" + $element + ".svg") $element;
+								}
+							}else
+							{
+								if (`button -q -po $element` == 0)
+								{
+									button -e -en 0 -bgc 0.3 0.3 0.3 $element;
+								}
+							}
+						}
+						//print $PreButtonNames;
+						if (size($PreButtonNames) != 0)
+						{
+							for ($PreButtonName in $PreButtonNames)
+							{
+								if (`gmatch $PreButtonName "*Icon*"`)
+								{
+									if (`symbolButton -q -po $PreButtonName` == 0)
+									{
+										symbolButton -e -en 1 -image (`asInstallScriptLocation` + "Icon/" + $PreButtonName + "PRE.svg") $PreButtonName;
+									}
+								}else
+								{
+									if (`button -q -po $PreButtonName` == 0)
+									{
+										button -e -en 1 -bgc 0.480 0.594 0.699 $PreButtonName;
+									}
+								}
+							}
+						}
+						if ($DownButtonNum == $SelectType)
+						{
+							string $TimeScale[];
+							tokenize($CACPLoadAimDateTimeNow[$DownButtonIndexs[0]],"-",$TimeScale);
+							playbackOptions -ast $TimeScale[0] -aet $TimeScale[1] -min $TimeScale[0] -max $TimeScale[1];
+						}
+					}
+				}else
+				{
+					$result = `confirmDialog -messageAlign "center" -title "警告！" -message "已超出同时检查部位上限，是否重新选择检查部位。(注：正常情况该窗口不会出现！！)" -button "重选" -button "取消" -icon warning`;
+					if ($result == "重选")
+					{
+						for ($element in $CACPLoadAimDateType1)
+						{
+							if (`gmatch $element "*Icon*"`)
+							{
+								symbolButton -e -po 0 -en 1 -image (`asInstallScriptLocation` + "Icon/" + $element + ".svg") $element;
+							}else
+							{
+								button -e -po 0 -en 1 -bgc 0.5 0.5 0.5 $element;
+							}
+						}
+						$DownButtonNum = 0;
+					}
+				}
+			}
+			if (`gmatch $ButtonName "*Button*"`)
+			{
+				if ($DownButtonNum <= $SelectType)
+				{
+					if (`button -q -po $ButtonName` == 1)
+					{
+						string $ButtonNameTmp[];
+						$ButtonNameTmp[0] = $ButtonName;
+						string $DownButtonNamesTmp[];
+						$DownButtonNamesTmp = $DownButtonNames;
+						//refresh;
+						button -e -po 0 -bgc 0.5 0.5 0.5 $ButtonName;
+						//$DownButtonNum = $DownButtonNum -1;
+						global int $DownButtonIndexs[];
+						$DownButtonIndexs = {};
+						$DownButtonNum = 0;
+						CACPRestoreDefault ();
+						$DownButtonNames = stringArrayRemoveExact($ButtonNameTmp,$DownButtonNamesTmp);
+						//print $DownButtonNames;
+						for ($DownButtonName in $DownButtonNames)
+						{
+							if (`gmatch $DownButtonName "*Icon*"`)
+							{
+								symbolButton -e -po 1 -image (`asInstallScriptLocation` + "Icon/" + $DownButtonName + "ON.svg") $DownButtonName;
+							}else
+							{
+								button -e -po 1 -bgc 0.176 0.789 0.176 $DownButtonName;
+							}
+							$DownButtonNum = $DownButtonNum +1;
+							//获取提示可选部位
+								//获取可选部位数据
+							int $ButtonIndex[];
+							//获取当前部位的可选部位
+							$ButtonIndex = findStringIndexInArray ( $CACPLoadAimDateTypeNow, $DownButtonName, 1 );
+							//保留相同可选部位
+							if ($DownButtonNum != 1)
+							{
+								$DownButtonIndexs = keepCommonIntInArray ( $DownButtonIndexs, $ButtonIndex );
+							}else
+							{
+								$DownButtonIndexs = $ButtonIndex;
+							}
+								//print $DownButtonIndexs;
+								//解析可选部位数据
+							global string $PreButtonNames[];
+							$PreButtonNames = {};
+							for ($Index in $DownButtonIndexs)
+							{
+								string $PartsTemp[];
+								tokenize($CACPLoadAimDateTypeNow[$Index],",",$PartsTemp);
+								for ($i=0; $i<size($PartsTemp); $i++)
+								{
+									$PreButtonNames[size($PreButtonNames)] = $PartsTemp[$i];
+								}
+							}
+							$PreButtonNames = stringArrayRemoveDuplicates($PreButtonNames);
+								//禁用不可选对象
+							for ($element in $CACPLoadAimDateType1)
+							{
+								if (`gmatch $element "*Icon*"`)
+								{
+									if (`symbolButton -q -po $element` == 0)
+									{
+										symbolButton -e -en 0 -image (`asInstallScriptLocation` + "Icon/" + $element + ".svg") $element;
+									}
+								}else
+								{
+									if (`button -q -po $element` == 0)
+									{
+										button -e -en 0 -bgc 0.3 0.3 0.3 $element;
+									}
+								}
+							}
+							if (size($PreButtonNames) != 0)
+							{
+								for ($PreButtonName in $PreButtonNames)
+								{
+									if (`gmatch $PreButtonName "*Icon*"`)
+									{
+										if (`symbolButton -q -po $PreButtonName` == 0)
+										{
+											symbolButton -e -en 1 -image (`asInstallScriptLocation` + "Icon/" + $PreButtonName + "PRE.svg") $PreButtonName;
+										}
+									}else
+									{
+										if (`button -q -po $PreButtonName` == 0)
+										{
+											button -e -en 1 -bgc 0.480 0.594 0.699 $PreButtonName;
+										}
+									}
+								}
+							}
+						}
+					}else if (`button -q -po $ButtonName` == 0 && $DownButtonNum < $SelectType)
+					{
+						button -e -po 1 -bgc 0.176 0.789 0.176 $ButtonName;
+						$DownButtonNum = $DownButtonNum +1;
+						$DownButtonNames[size($DownButtonNames)] = $ButtonName;
+						//获取提示可选部位
+							//获取可选部位数据
+						global int $DownButtonIndexs[];
+						int $ButtonIndex[];
+						//获取当前部位的可选部位
+						$ButtonIndex = findStringIndexInArray ( $CACPLoadAimDateTypeNow, $ButtonName, 1 );
+						//保留相同可选部位
+						if ($DownButtonNum != 1)
+						{
+							$DownButtonIndexs = keepCommonIntInArray ( $DownButtonIndexs, $ButtonIndex );
+						}else
+						{
+							$DownButtonIndexs = $ButtonIndex;
+						}
+							//解析可选部位数据
+						global string $PreButtonNames[];
+						$PreButtonNames = {};
+						for ($Index in $DownButtonIndexs)
+						{
+							string $PartsTemp[];
+							tokenize($CACPLoadAimDateTypeNow[$Index],",",$PartsTemp);
+							for ($i=0; $i<size($PartsTemp); $i++)
+							{
+								$PreButtonNames[size($PreButtonNames)] = $PartsTemp[$i];
+							}
+						}
+						$PreButtonNames = stringArrayRemoveDuplicates($PreButtonNames);
+							//禁用不可选对象
+						for ($element in $CACPLoadAimDateType1)
+						{
+							if (`gmatch $element "*Icon*"`)
+							{
+								if (`symbolButton -q -po $element` == 0)
+								{
+									symbolButton -e -en 0 -image (`asInstallScriptLocation` + "Icon/" + $element + ".svg") $element;
+								}
+							}else
+							{
+								if (`button -q -po $element` == 0)
+								{
+									button -e -en 0 -bgc 0.3 0.3 0.3 $element;
+								}
+							}
+						}
+						//print $PreButtonNames;
+						if (size($PreButtonNames) != 0)
+						{
+							for ($PreButtonName in $PreButtonNames)
+							{
+								if (`gmatch $PreButtonName "*Icon*"`)
+								{
+									if (`symbolButton -q -po $PreButtonName` == 0)
+									{
+										symbolButton -e -en 1 -image (`asInstallScriptLocation` + "Icon/" + $PreButtonName + "PRE.svg") $PreButtonName;
+									}
+								}else
+								{
+									if (`button -q -po $PreButtonName` == 0)
+									{
+										button -e -en 1 -bgc 0.480 0.594 0.699 $PreButtonName;
+									}
+								}
+							}
+						}
+						if ($DownButtonNum == $SelectType)
+						{
+							string $TimeScale[];
+							tokenize($CACPLoadAimDateTimeNow[$DownButtonIndexs[0]],"-",$TimeScale);
+							playbackOptions -ast $TimeScale[0] -aet $TimeScale[1] -min $TimeScale[0] -max $TimeScale[1];
+						}
+					}
+					//if (`button -q -po $ButtonName` == 1)
+					//{
+					//	button -e -po 0 -bgc 0.5 0.5 0.5 $ButtonName;
+					//	$DownButtonNum = $DownButtonNum -1;
+					//}else
+					//{
+					//	button -e -po 1 -bgc 0.176 0.789 0.176 $ButtonName;
+					//	$DownButtonNum = $DownButtonNum +1;
+					//}
+				}else
+				{
+					$result = `confirmDialog -messageAlign "center" -title "警告！" -message "已超出同时检查部位上限，是否重新选择检查部位。(注：正常情况该窗口不会出现！！)" -button "重选" -button "取消" -icon warning`;
+					if ($result == "重选")
+					{
+						for ($element in $CACPLoadAimDateType1)
+						{
+							if (`gmatch $element "*Icon*"`)
+							{
+								symbolButton -e -po 0 -en 1 -image (`asInstallScriptLocation` + "Icon/" + $element + ".svg") $element;
+							}else
+							{
+								button -e -po 0 -en 1 -bgc 0.5 0.5 0.5 $element;
+							}
+						}
+						$DownButtonNum = 0;
+					}
+				}
+			}
+		}
+	}else
+	//编辑模式
+	{
+		global string $DownButtonNames[];
+		if (`gmatch $ButtonName "*Icon*"`)
+		{
+			if (`symbolButton -q -po $ButtonName` == 0)
+			{
+				symbolButton -e -po 1 -image (`asInstallScriptLocation` + "Icon/" + $ButtonName + "ON.svg") $ButtonName;
+				$DownButtonNames[size($DownButtonNames)] = $ButtonName;
+			}else
+			{
+				symbolButton -e -po 0 -image (`asInstallScriptLocation` + "Icon/" + $ButtonName + ".svg") $ButtonName;
+				string $ButtonNameTmp[];
+				$ButtonNameTmp[0] = $ButtonName;
+				string $DownButtonNamesTmp[];
+				$DownButtonNamesTmp = $DownButtonNames;
+				$DownButtonNames = stringArrayRemoveExact($ButtonNameTmp,$DownButtonNamesTmp);
+			}
+		}
+		if (`gmatch $ButtonName "*Button*"`)
+		{
+			if (`button -q -po $ButtonName` == 0)
+			{
+				button -e -po 1 -bgc 0.176 0.789 0.176 $ButtonName;
+				$DownButtonNames[size($DownButtonNames)] = $ButtonName;
+			}else
+			{
+				button -e -po 0 -bgc 0.5 0.5 0.5 $ButtonName;
+				string $ButtonNameTmp[];
+				$ButtonNameTmp[0] = $ButtonName;
+				string $DownButtonNamesTmp[];
+				$DownButtonNamesTmp = $DownButtonNames;
+				$DownButtonNames = stringArrayRemoveExact($ButtonNameTmp,$DownButtonNamesTmp);
+			}
+		}
+	}
+}
+CheckAnimationCtrlPanel();

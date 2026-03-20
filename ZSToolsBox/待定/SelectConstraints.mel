@@ -1,0 +1,40 @@
+global proc selectHierarchyConstraints()
+{
+    string $selected[] = `ls -selection`;
+    if (size($selected) == 0)
+    {
+        warning("请先选择一个或多个父级物体");
+        return;
+    }
+    
+    string $constraints[];
+    for ($node in $selected)
+    {
+        // 获取所有后代节点
+        string $descendants[] = `listRelatives -allDescendents $node`;
+        if (size($descendants) > 0)
+        {
+            for ($descendant in $descendants)
+            {
+                // 检查是否为约束节点
+                string $type = `nodeType $descendant`;
+                if (endsWith($type, "Constraint"))
+                {
+                    $constraints[size($constraints)] = $descendant;
+                }
+            }
+        }
+    }
+    
+    if (size($constraints) > 0)
+    {
+        select -r $constraints;
+    }
+    else
+    {
+        warning("所选层级下未找到约束节点");
+    }
+}
+
+// 调用函数
+selectHierarchyConstraints();

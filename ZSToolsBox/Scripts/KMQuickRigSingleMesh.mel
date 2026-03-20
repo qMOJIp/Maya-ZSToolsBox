@@ -1,0 +1,54 @@
+global proc KMItemsPreWindow ()
+{
+	if (`window -exists "KMItemsPreWindow"`)
+	{
+		deleteUI -window "KMItemsPreWindow";
+	}
+	window -title "单骨骼物品快速绑定" -widthHeight 200 100 -sizeable 0 -minimizeButton true-maximizeButton true KMItemsPreWindow;
+		columnLayout -columnAttach both 5 -adjustableColumn true KMItemsPreWindowcolumnLayout;
+
+		textFieldGrp -label "编组" -text "A" -columnWidth2 40 50 ItemLevel;
+	
+		textFieldGrp -label "编号" -text "01" -columnWidth2 40 50 ItemNum;
+
+		textFieldGrp -label "路径" -text "C:/Users/Administrator/Desktop/ItemsRigPre.ma" -columnWidth2 40 50 ItemHelpFilePath;
+
+		button -label "创建" 
+			   -command "KMcreateItemsPre";
+	showWindow KMItemsPreWindow;
+}
+
+global proc KMcreateItemsPre ()
+{
+	string $ItemHelpFilePath = `textFieldGrp -query -text ItemHelpFilePath`;
+	$ItemHelpFilePath = fromNativePath($ItemHelpFilePath);
+	string $ItemLevel = `textFieldGrp -query -text ItemLevel`;
+	string $ItemNum = `textFieldGrp -query -text ItemNum`;
+	string $parents[] = `listRelatives -parent "Geom"`;
+	string $JointName = `substitute "_grp" $parents[0] ""` + $ItemLevel + $ItemNum + "_M";
+	// 导入 MA 文件
+	file -import -type "mayaAscii" -ignoreVersion -mergeNamespacesOnClash false -namespace ":" -options "v=0;" $ItemHelpFilePath;
+	parent "Group" $parents[0];
+	joint -name $JointName;
+	parent $JointName "root";
+	matchTransform -position -rotation -scale $JointName "root";
+	makeIdentity -apply true -translate true -rotate true -scale true $JointName;
+	//刷新主视口，防止设置失效
+	refresh -f -currentView;
+	rename "FKOffsetRoot_M" ("FKOffse" + $JointName);
+	rename "FKExtraRoot_M" ("FKExtra" + $JointName);
+	rename "Root_MCtrl" ($JointName + "Ctrl");
+	parentConstraint -maintainOffset ($JointName + "Ctrl") $JointName;
+	scaleConstraint -maintainOffset ($JointName + "Ctrl") $JointName;
+	
+	selectGeometry ("mesh");
+	select -add $JointName;
+	newSkinCluster "-toSelectedBones -bindMethod 0  -normalizeWeights 1 -weightDistribution 0 -mi 4 -omi true -dr 4 -rui true  , multipleBindPose, 0";
+	select -cl;
+	sets -name "ControlSet";
+	select -r ($JointName + "Ctrl") MainExtra2 MainExtra1 Main;
+	sets -add ControlSet;
+	select -r -ne ControlSet;
+	sets -name "Sets";
+}
+KMItemsPreWindow ();

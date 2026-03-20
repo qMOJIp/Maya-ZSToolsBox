@@ -1,0 +1,45 @@
+// 选择特定类型的几何体
+global proc selectGeometry ( string $geometryType ) {
+	string $geometryNodes[];
+	
+	if ($geometryType == "mesh") {
+		$geometryNodes = `ls -type "mesh"`;
+	} else if ($geometryType == "nurbsSurface") {
+		$geometryNodes = `ls -type "nurbsSurface"`;
+	} else if ($geometryType == "nurbsCurve") {
+		$geometryNodes = `ls -type "nurbsCurve"`;
+	} else if ($geometryType == "all") {
+		$geometryNodes = `ls -type "mesh" -type "nurbsSurface" -type "nurbsCurve"`;
+	} else {
+		warning("不支持的几何体类型: " + $geometryType);
+		return;
+	}
+	
+	if (size($geometryNodes) == 0) {
+		warning("场景中没有 " + $geometryType + " 类型的几何体");
+		return;
+	}
+	
+	// 获取变换节点
+	string $transforms[];
+	for ($geo in $geometryNodes) {
+		string $parent[] = `listRelatives -parent $geo`;
+		if (size($parent) > 0) {
+			$transforms[size($transforms)] = $parent[0];
+		}
+	}
+	
+	// 去重
+	string $uniqueTransforms[] = stringArrayRemoveDuplicates($transforms);
+	
+	if (size($uniqueTransforms) > 0) {
+		select -replace $uniqueTransforms;
+		print("已选择 " + size($uniqueTransforms) + " 个 " + $geometryType + " 对象\n");
+	}
+}
+
+// 使用示例
+selectGeometry("mesh");        // 选择所有多边形网格
+selectGeometry("nurbsSurface"); // 选择所有NURBS曲面
+selectGeometry("nurbsCurve");   // 选择所有NURBS曲线
+selectGeometry("all");          // 选择所有几何体

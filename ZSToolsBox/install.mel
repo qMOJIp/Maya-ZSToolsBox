@@ -1,0 +1,439 @@
+//窗口
+global proc BOXinstall ()
+{
+	if (`window -exists "BOXinstallwindow"`)
+	{
+		deleteUI -window "BOXinstallwindow";
+	}
+	window -title "ZSToolsBox安装程序" -width 500 -height 295 -sizeable 0 -backgroundColor 0.9 0.9 0.9 BOXinstallwindow;
+		columnLayout -columnAttach both 5 -adjustableColumn true -p BOXinstallwindow BOXinstallcolumnLayout;
+			// 标题
+			text -label "插件安装向导" -font "boldLabelFont" -height 30;
+			separator -width 500 -height 2;
+	
+			// 插件信息
+			frameLayout -label "插件信息" -marginWidth 10 -marginHeight 5 -backgroundColor 0.95 0.95 0.95;
+				rowColumnLayout -numberOfColumns 2 -columnWidth 1 80 -columnWidth 2 300 -columnAttach 1 "both" 5 -columnAttach 2 "both" 5;
+					text -label "插件名称：" -align "right";
+					text -label "ZSToolsBox（ZS工具盒）" -align "left";
+					
+					text -label "支持软件：" -align "right";
+					text -label "Maya 2022+" -align "left";
+					
+					string $nowversionfile = `asInstallLocation` + "PublicFiles/Settings/Version.set";
+					string $nowversion = freadAllText($nowversionfile);
+					text -label "当前版本：" -align "right";
+					text -label $nowversion -align "left";
+				setParent ..;
+				
+				rowColumnLayout -numberOfColumns 3 -columnWidth 1 80 -columnWidth 2 350 -columnWidth 3 12 -columnAttach 1 "both" 5 -columnAttach 2 "both" 5 -columnAttach 3 "both" 5;
+					text -label "最新版本：" -align "right";
+					text -label "VXXXX.XX.XX.X" -align "left" newversiontext;
+					string $newversionimage = `asInstallLocation` + "Icon/Refresh.png";
+					symbolButton -w 12 -h 12 -image $newversionimage -c "checkVersion" newversionbutton;
+				setParent ..;
+			setParent ..;
+			
+			// 安装选项
+			frameLayout -label "安装选项" -marginWidth 10 -marginHeight 5 -backgroundColor 0.95 0.95 0.95;
+				columnLayout -adjustableColumn true;
+					// 安装路径选择
+					rowColumnLayout -numberOfColumns 3 -columnWidth 1 70 -columnWidth 2 300 -columnWidth 3 75;
+						text -label "安装路径：" -align "right";
+						textField -backgroundColor 0.95 0.95 0.95 -tx `internalVar -userScriptDir` -editable false InstallPathField;
+						button -enable false -label "浏览..." -command "showFileBrowserStartPath()" browsebutton;
+					setParent ..;
+
+					// 安装类型
+					radioButtonGrp 
+						-select 1 
+						-label "安装类型：" 
+						-labelArray4 "默认安装" "清理安装" "覆盖安装" "自定义安装" 
+						-numberOfRadioButtons 4 
+						-columnWidth5 70 95 95 95 95 
+						-on1 "setInstallType1" 
+						-an1 "将安装到Maya的默认插件目录" 
+						-on2 "setInstallType2" 
+						-an2 "卸载后重新安装，目的为删除更新迭代中本地产生的无用文件" 
+						-on3 "setInstallType3" 
+						-an3 "不做额外操作仅对已有文件进行覆盖" 
+						-on4 "setInstallType4"
+						-an4 "将安装到自定义路径" 
+						BOXinstallradioButtonGrp;
+					
+					// 安装选项
+					rowColumnLayout -numberOfColumns 5 -columnWidth 1 10 -columnWidth 2 125 -columnWidth 3 125 -columnWidth 4 125 -columnWidth 5 125;
+						text -label "";
+						checkBox -label "创建书架" -value 1 checkBoxAddShelf;
+						checkBox -label "自动启动" -value 1 checkBoxAutoStart;
+						checkBox -label "提醒更新" -value 1 checkBoxAutoUpdate;
+						checkBox -label "保留设置" -onCommand "checkBoxKeepSetCommand" -value 1 checkBoxKeepSet;
+					setParent ..;
+					
+				setParent ..;
+			setParent ..;
+				
+			// 按钮区域
+			separator -width 500 -height 2;
+				
+			rowColumnLayout -numberOfColumns 4 -columnWidth 1 121 -columnWidth 2 122 -columnWidth 3 122 -columnWidth 4 121 buttonRow;
+				button -label "安装" -command "BOXInstall" -backgroundColor 0.1 0.5 0.9 -width 100;
+				
+				button -label "取消" -command ("deleteUI -window \"BOXinstallwindow\"") -width 100;
+				
+				button -label "默认设置" -command "BOXinstallDefaultSet" -width 100;
+				
+				button -label "帮助" -command "BOXinstallHelp" -width 100;
+			setParent ..;
+			button -label "就地安装" -ann "安装包的位置就是插件安装位置不需要做额外的操作" -command "BOXInstallHere" -width 100;
+			
+			// 状态栏
+			text -label "就绪" -align "center" -h 20 -w 485 -backgroundColor 0.8 0.8 0.8 BOXinstallLoad;
+			separator -h 5 -style "none";
+		setParent ..;
+		// 显示窗口
+	showWindow BOXinstallwindow;
+	setInstallType1();
+	checkBoxKeepSetCommand();
+	window -e  -width 500 -sizeable 0 BOXinstallwindow;
+}
+
+//获取输入框路径
+global proc showFileBrowserStartPath ()
+{
+	showFileBrowser ( "textField -tx ", `textField -q -tx InstallPathField`, "InstallPathField" );
+}
+
+//刷新窗口版本
+global proc checkVersion ()
+{
+	string $newversion = checkGitHubVersion("qMOJIp", "Maya-ZSToolsBox");
+	text -e -label $newversion -align "left" newversiontext;
+}
+
+//默认安装
+global proc setInstallType1 ()
+{
+	if (`checkNowInstallPath` != "")
+	{
+		radioButtonGrp -e -select 2 BOXinstallradioButtonGrp;
+		setInstallType2();
+	}else
+	{
+		checkBox -e -enable true -value 1 checkBoxAddShelf;
+		checkBox -e -enable true -value 1 checkBoxAutoStart;
+		checkBox -e -enable true -value 1 checkBoxAutoUpdate;
+		checkBox -e -enable true -value 1 checkBoxKeepSet;
+		button -e -enable false browsebutton;
+		textField -backgroundColor 0.95 0.95 0.95 -e -tx `internalVar -userScriptDir` -editable false InstallPathField;
+	}
+}
+
+//清理安装
+global proc setInstallType2 ()
+{
+	print ("已安装路径为：" + `checkNowInstallPath` + "\n");
+	if (`checkNowInstallPath` == "")
+	{
+		radioButtonGrp -e -select 1 BOXinstallradioButtonGrp;
+		setInstallType1();
+	}else
+	{
+		checkBox -e -enable true -value 1 checkBoxAddShelf;
+		checkBox -e -enable true -value 1 checkBoxAutoStart;
+		checkBox -e -enable true -value 1 checkBoxAutoUpdate;
+		checkBox -e -enable true -value 1 checkBoxKeepSet;
+		button -e -enable false browsebutton;
+		textField -backgroundColor 0.95 0.95 0.95 -e -tx `checkNowInstallPath` -editable false InstallPathField;
+	}
+}
+
+//覆盖安装
+global proc setInstallType3 ()
+{
+	print ("已安装路径为：" + `checkNowInstallPath` + "\n");
+	if (`checkNowInstallPath` == "")
+	{
+		radioButtonGrp -e -select 1 BOXinstallradioButtonGrp;
+		setInstallType1();
+	}else
+	{
+		checkBox -e -enable false -value 0 checkBoxAddShelf;
+		checkBox -e -enable false -value 0 checkBoxAutoStart;
+		checkBox -e -enable false -value 0 checkBoxAutoUpdate;
+		checkBox -e -enable false -value 0 checkBoxKeepSet;
+		button -e -enable false browsebutton;
+		textField -backgroundColor 0.95 0.95 0.95 -e -tx `checkNowInstallPath` -editable false InstallPathField;
+	}
+}
+
+//自定义安装
+global proc setInstallType4 ()
+{
+	if (`checkNowInstallPath` != "")
+	{
+		confirmDialog -messageAlign "left" -backgroundColor 0.9 0.9 0.9 -title "警告！" -message "当前已经安装过本插件，选择不同路径安装将导致之前插件失效且不会清理任何文件，若为更新请选择“清理安装”或“覆盖安装”。" -button "确定";
+	}
+	checkBox -e -enable true -value 1 checkBoxAddShelf;
+	checkBox -e -enable true -value 1 checkBoxAutoStart;
+	checkBox -e -enable true -value 1 checkBoxAutoUpdate;
+	checkBox -e -enable true -value 1 checkBoxKeepSet;
+	button -e -enable true browsebutton;
+	textField -backgroundColor 0.95 0.95 0.95 -e -editable true InstallPathField;
+}
+
+//检测是否已经安装
+global proc checkBoxKeepSetCommand ()
+{
+	if (`checkNowInstallPath` == "")
+	{
+		checkBox -e -value 0 checkBoxKeepSet;
+	}
+}
+
+//默认设置
+global proc BOXinstallDefaultSet ()
+{
+	radioButtonGrp -e -select 1 BOXinstallradioButtonGrp;
+	setInstallType1();
+	checkBox -e -value 1 checkBoxAddShelf;
+	checkBox -e -value 1 checkBoxAutoStart;
+	checkBox -e -value 1 checkBoxAutoUpdate;
+	checkBox -e -value 1 checkBoxKeepSet;
+	checkBoxKeepSetCommand();
+}
+
+//指引安装
+global proc BOXInstallHere ()
+{
+	if (`checkNowInstallPath` != "")
+	{
+		confirmDialog -messageAlign "left" -backgroundColor 0.9 0.9 0.9 -title "警告！" -message "当前已经安装过本插件，选择不同路径安装将导致之前插件失效且不会清理任何文件，若为更新请选择“清理安装”或“覆盖安装”。" -button "确定";
+	}
+	radioButtonGrp -e -select 4 BOXinstallradioButtonGrp;
+	button -e -enable true browsebutton;
+	textField -backgroundColor 0.95 0.95 0.95 -tx (dirname(`asInstallLocation`)) -e -editable true InstallPathField;
+	BOXInstall ();
+}
+
+//可否保留设置检测
+global proc BOXInstall ()
+{
+	string $userSetupPath = `internalVar -userScriptDir` + "userSetup.mel";
+	string $InstallPath = `textField -q -tx InstallPathField`;
+	$InstallPath = fromNativePath($InstallPath);
+	textField -e -tx $InstallPath InstallPathField;
+	if ($InstallPath == "")
+	{
+		text -e -label "请填写安装路径！！" BOXinstallLoad;
+		error ("安装路径为空！！！");
+	}else if (`gmatch $InstallPath "*.*"`)
+	{
+		text -e -label "■ - 修 - 复 - 路 - 径 - ■" BOXinstallLoad;
+		refresh -f -currentView;
+		$InstallPath = dirname($InstallPath) + "/";
+		textField -e -tx $InstallPath InstallPathField;
+		warning ("非法路径，已修复！！！");
+		wait(1);
+	}else
+	{
+		text -e -label "■ - 确 - 认 - 路 - 径 - ■" BOXinstallLoad;
+		refresh -f -currentView;
+		if (!`gmatch $InstallPath "*/"`)
+		{
+			$InstallPath = $InstallPath + "/";
+			textField -e -tx $InstallPath InstallPathField;
+		}
+		wait(1);
+	}
+	if (`checkBox -q -value checkBoxKeepSet` == 1)
+	{
+		text -e -label "■■■■ - 保 - 留 - 设 - 置 - ■■■■" BOXinstallLoad;
+		refresh -f -currentView;
+		string $fromPathContent = `checkNowInstallPath` + "ZSToolsBox/PublicFiles/";
+		string $toPathContent = $InstallPath + "ZSToolsBoxSaveSet/PublicFiles/";
+		copyFolder($fromPathContent, $toPathContent, 1);
+		wait(1);
+	}
+	if (`radioButtonGrp -q -select BOXinstallradioButtonGrp` == 2)
+	{
+		text -e -label "■■■■■■■ - 清 - 理 - 插 - 件 - ■■■■■■■" BOXinstallLoad;
+		refresh -f -currentView;
+		system ("rd \"" + `internalVar -userScriptDir` + "ZSToolsBox/" + "\" /s /q");
+		wait(1);
+	}
+	if (`checkBox -q -value checkBoxAddShelf` == 1)
+	{
+		text -e -label "■■■■■■■■■■ - 创 - 建 - 书 - 架 - ■■■■■■■■■■" BOXinstallLoad;
+		refresh -f -currentView;
+		string $ShelfPath = `internalVar -userShelfDir` + "shelf_ZSToolsBoxShelf.mel";
+		if (`filetest -f $ShelfPath`)
+		{
+			system ("del \"" + toNativePath($ShelfPath) + "\"");
+			deleteUI "ZSToolsBoxShelf";
+			wait(1);
+		}
+		string $ShelfInstallPath = `asInstallLocation` + "ZSToolsBoxShelf.mel";
+		loadNewShelf $ShelfInstallPath;
+		wait(1);
+	}
+	if (`radioButtonGrp -q -select BOXinstallradioButtonGrp` != 3)
+	{
+		RemoveSetLine ( $userSetupPath, "*ZSToolsBox*" );
+	}
+	if (`checkBox -q -value checkBoxAutoStart` == 1)
+	{
+		text -e -label "■■■■■■■■■■■■■ - 自 - 动 - 启 - 动 - ■■■■■■■■■■■■■" BOXinstallLoad;
+		refresh -f -currentView;
+		$InstallPath = `textField -q -tx InstallPathField`;
+		string $writecontent = "\nsource \"" + $InstallPath + "ZSToolsBox/ZSToolsBox.mel\";";
+		writeFile($userSetupPath, $writecontent);
+		wait(1);
+	}
+	if (`checkBox -q -value checkBoxAutoUpdate` == 1)
+	{
+		text -e -label "■■■■■■■■■■■■■■■■ - 提 - 醒 - 更 - 新 - ■■■■■■■■■■■■■■■■" BOXinstallLoad;
+		refresh -f -currentView;
+		string $AutoStartPath = `asInstallLocation` + "PublicFiles/Settings/AutoStart.set";
+		string $AutoStartText = freadAllText($AutoStartPath);
+		if (!`gmatch $AutoStartText "*CheckUpdate*"`)
+		{
+			string $writecontent = "\neval(\"source \\\"\" + `asInstallLocation` + \"Scripts/CheckUpdate.mel\" + \"\\\"\");";
+			writeFile($AutoStartPath, $writecontent);
+		}
+		wait(1);
+	}else
+	{
+		text -e -label "■■■■■■■■■■■■■■■■ - 忽 - 略 - 更 - 新 - ■■■■■■■■■■■■■■■■" BOXinstallLoad;
+		refresh -f -currentView;
+		string $AutoStartPath = `asInstallLocation` + "PublicFiles/Settings/AutoStart.set";
+		string $AutoStartText = freadAllText($AutoStartPath);
+		string $AutoStartlines[] = freadAllLines($AutoStartPath);
+		if (`gmatch $AutoStartText "*CheckUpdate*"`)
+		{
+			cleanFile($AutoStartPath);
+			for ($i=0; $i<size($AutoStartlines); $i++)
+			{
+				if (!`gmatch $AutoStartlines[$i] "*CheckUpdate*"`)
+				{
+					writeFile($AutoStartPath, $AutoStartlines[$i]);
+				}
+			}
+		}
+		wait(1);
+	}
+	if (`checkBox -q -value checkBoxKeepSet` == 1)
+	{
+		text -e -label "■■■■■■■■■■■■■■■■■■■ - 还 - 原 - 设 - 置 - ■■■■■■■■■■■■■■■■■■■" BOXinstallLoad;
+		refresh -f -currentView;
+		string $fromPathContent = $InstallPath + "ZSToolsBoxSaveSet/PublicFiles/";
+		string $toPathContent = $InstallPath + "ZSToolsBox/PublicFiles/";
+		copyFolder($fromPathContent, $toPathContent, 1);
+		wait(5);
+		system ("rd \"" + $InstallPath + "ZSToolsBoxSaveSet/" + "\" /s /q");
+		wait(1);
+	}
+	if (`asInstallLocation` != ($InstallPath + "ZSToolsBox/"))
+	{
+		string $fromPathContent = `asInstallLocation`;
+		string $toPathContent = $InstallPath + "ZSToolsBox/";
+		copyFolder($fromPathContent, $toPathContent, 1);
+	}
+	//写入模块文件（.mod）
+	string $MODFilePath = `asInstallLocation` + "ExternalModules/";
+	string $MODFileNames[] = `getFileList -folder $MODFilePath -filespec "*.mod"`;
+	for ($MODFileName in $MODFileNames)
+	{
+		string $FilePath = `asInstallLocation` + "ExternalModules/" + $MODFileName;
+		string $Content = freadAllText($FilePath);
+		string $InstallModPath = dirname(`internalVar -userScriptDir`) + "/modules/" + $MODFileName;
+		$Content = substituteAllString($Content, "@ReplaceMe@", (toNativePath(dirname(`asInstallLocation`) + "/")));
+		cleanFile ( $InstallModPath );
+		writeFile ( $InstallModPath, $Content );
+	}
+	text -e -label "■■■■■■■■■■■■■■■■■■■■■ - 安 - 装 - 完 - 成 - ■■■■■■■■■■■■■■■■■■■■■" BOXinstallLoad;
+	refresh -f -currentView;
+	wait(1);
+	text -e -label "3秒后退出" BOXinstallLoad;
+	refresh -f -currentView;
+	wait(1);
+	text -e -label "2秒后退出" BOXinstallLoad;
+	refresh -f -currentView;
+	wait(1);
+	text -e -label "1秒后退出" BOXinstallLoad;
+	refresh -f -currentView;
+	wait(1);
+	text -e -label "0秒后退出" BOXinstallLoad;
+	refresh -f -currentView;
+	wait(1);
+	$InstallPath = `textField -q -tx InstallPathField`;
+	eval ("source \"" + $InstallPath + "ZSToolsBox/ZSToolsBox.mel\"");
+	deleteUI -window "BOXinstallwindow";
+}
+
+//检查安装
+global proc string checkNowInstallPath ()
+{
+	string $return = "";
+	string $userSetupPath = `internalVar -userScriptDir` + "userSetup.mel";
+	string $userSetuplines[] = freadAllLines($userSetupPath);
+	int $turninstall = 0;
+	for ($i=0; $i<size($userSetuplines); $i++)
+	{
+		if (`gmatch $userSetuplines[$i] "*ZSToolsBox*"`)
+		{
+			string $getpath[] = stringToStringArray( $userSetuplines[$i], "\"" );
+			$getpath[1] = dirname($getpath[1]);
+			$getpath[1] = dirname($getpath[1]);
+			$getpath[1] = $getpath[1] + "/";
+			$turninstall = 1;
+			$return = $getpath[1];
+			return $return;
+		}
+	}
+	if ($turninstall != 1)
+	{
+		warning ("未安装过本插件！！！");
+		return $return;
+	}
+}
+
+//帮助
+global proc BOXinstallHelp ()
+{
+	string $helpText = "安装类型：\n";
+	$helpText += "- 默认安装：将安装到Maya的默认插件目录\n";
+	$helpText += "- 清理安装：卸载后重新安装，目的为删除更新迭代中本地产生的无用文件    \n";
+	$helpText += "- 覆盖安装：检测当前安装的版本插件的目录\n";
+	$helpText += "- 自定义安装：将安装到自定义路径\n\n";
+	$helpText += "勾选设置：\n";
+	$helpText += "- 创建书架：将会创建一个包含本工具盒所有插件的书架\n";
+	$helpText += "- 自动启动：将会随Maya一起启动\n";
+	$helpText += "- 提醒更新：将在Maya启动后检测是否有更新\n";
+	$helpText += "- 保留设置：保留之前插件的使用设置";
+	
+	confirmDialog -messageAlign "left" -backgroundColor 0.9 0.9 0.9 -title "安装帮助" -message $helpText -button "确定";
+}
+
+//获取当前Install所在的路径
+global proc asInstallLocator (){}
+
+global proc string asInstallLocation ()
+{
+string $whatIs = `whatIs asInstallLocator`;
+string $fullPath = `substring $whatIs 25 999`;
+string $buffer[];
+string $slash = "/";
+if (`gmatch $whatIs "*\\\\*"`)//sourced from ScriptEditor
+	$slash = "\\";
+int $numTok = `tokenize $fullPath $slash $buffer`;
+int $numLetters = size($fullPath);
+int $numLettersLastFolder = size($buffer[$numTok-1]);
+string $scriptLocation = `substring $fullPath 1 ($numLetters-$numLettersLastFolder)`;
+return $scriptLocation;
+}
+
+//加载公共函数
+eval ("source \"" + `asInstallLocation` + "Scripts/ALLPublicScripts.mel\"");
+eval ("source \"" + `asInstallLocation` + "Scripts/MayaFileExplorer.mel\"");
+BOXinstall;

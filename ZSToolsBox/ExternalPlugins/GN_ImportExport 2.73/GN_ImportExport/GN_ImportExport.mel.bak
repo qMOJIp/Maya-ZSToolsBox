@@ -1,0 +1,65 @@
+// GN Import run command
+global proc GN_Import()
+{
+	python("from GN_ImportExport.GN_scripts import GN_Import");
+	python("GN_Import.GN_Import(optionBox=False)");
+}
+
+// GN Import option box
+global proc GN_ImportOptions()
+{
+	python("from GN_ImportExport.GN_scripts import GN_Import");
+	python("GN_Import.GN_Import(optionBox=True)");
+}
+
+// GN Export run command
+global proc GN_Export()
+{	
+	python("from GN_ImportExport.GN_scripts import GN_Export");
+	python("GN_Export.GN_Export(optionBox=False)");
+}
+
+// GN Export option box
+global proc GN_ExportOptions()
+{
+	python("from GN_ImportExport.GN_scripts import GN_Export");
+	python("GN_Export.GN_Export(optionBox=True)");
+}
+
+// GN Clean Cache
+global proc GN_ImportExportCleanup()
+{
+	python("from GN_ImportExport.GN_scripts import GN_ImportExportCleanup");
+	python("GN_ImportExportCleanup.GN_ImportExportCleanup()");
+}
+
+// Command to close GN Import/Export menu
+global proc IE_CloseMenu()
+{
+    for ($menu in `lsUI -m`)
+    {
+        if (`menu -q -l $menu` == "GN Import/Export")
+        {
+            deleteUI $menu;
+            break;
+        }
+    }
+}
+
+// GN Import/Export menu
+global proc GN_ImportExport()
+{
+    string $GN_icons = (`internalVar -userScriptDir`) + "GN_ImportExport/GN_icons/";
+	
+	IE_CloseMenu();
+    
+    // Main Menu
+    menu -l "GN Import/Export" -to 1 -aob 1 -p "MayaWindow";
+	
+    // Import/Export
+	menuItem -l "GN Import" -i ($GN_icons + "GN_Import.png") -c "GN_Import" -ddc "GN_ImportOptions";
+	menuItem -ob 1 -i ($GN_icons + "GN_Import.png") -c "GN_ImportOptions" -ddc "GN_Import";
+	menuItem -l "GN Export" -i ($GN_icons + "GN_Export.png") -c "GN_Export" -ddc "GN_ExportOptions";
+	menuItem -ob 1 -i ($GN_icons + "GN_Export.png") -c "GN_ExportOptions" -ddc "GN_Export";
+	menuItem -l "GN Clean Cache" -i ($GN_icons + "GN_ImportExportCleanup.png") -c "GN_ImportExportCleanup";
+}

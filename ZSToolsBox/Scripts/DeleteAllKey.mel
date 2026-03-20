@@ -1,0 +1,17 @@
+//delete `ls -type "animCurveTA" "animCurveTL" "animCurveTU" "animCurveTT"`;
+currentTime 0 ;
+if (size(`ls -type "animCurveTA"`) != 0)
+{
+	delete `ls -type "animCurveTA"`;
+}
+if (size(`ls -type "animCurveTL"`) != 0)
+{
+	delete `ls -type "animCurveTL"`;
+}
+if (size(`ls -type "animCurveTU"`) != 0)
+{
+	delete `ls -type "animCurveTU"`;
+}
+//delete `ls -type "animCurveTL"`;
+//delete `ls -type "animCurveTU"`;
+//delete `ls -type "animCurveTT"`;

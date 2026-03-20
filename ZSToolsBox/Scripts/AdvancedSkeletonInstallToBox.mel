@@ -1,0 +1,59 @@
+//加载公共函数
+eval ("source \"" + `asInstallScriptLocation` + "Scripts/ALLPublicScripts.mel\"");
+
+global proc AdvancedSkeletonInstallToBox ()
+{
+	// 打开 Maya 原生文件夹选择对话框
+	global string $selectedFolder[];
+	$selectedFolder = `fileDialog2 -fileMode 3 -caption "选择安装文件夹"`;
+	// 判断是否选择了文件夹
+	if (size($selectedFolder) > 0)
+	{
+		// 输出选中的路径（方便调试）
+		print ("选中的文件夹路径：" + $selectedFolder[0] + "\n");
+		string $InstallPath = `asInstallScriptLocation` + "ExternalPlugins/AdvancedSkeleton/";
+		copyFolder ( $selectedFolder[0], $InstallPath, 1 );
+		if (`window -exists "NewNameWindow"`)
+		{
+			deleteUI "NewNameWindow";
+		}
+		window -cc "UnInstallCom" -title "配置路径" -s 0 -tlb 1 NewNameWindow;
+		columnLayout -columnAttach both 5 -adjustableColumn true NewNamecolumnLayout;
+			separator -h 5 -style "none";
+			textFieldButtonGrp -adj 2 -columnAlign3 "center" "center" "right" -columnWidth3 60 80 50 -label "安装版号：" -tx "" -buttonLabel "确认" -buttonCommand "ADVITBNewyName" NewNametextFieldButtonGrp;
+			separator -h 5 -style "none";
+		showWindow "NewNameWindow";
+	}
+	else
+	{
+		warning ("已取消安装！！！\n");
+	}
+}
+
+global proc UnInstallCom ()
+{
+	global string $selectedFolder[];
+	string $InstallPath = `asInstallScriptLocation` + "ExternalPlugins/AdvancedSkeleton/";
+	system ("rd \"" + $InstallPath + basename($selectedFolder[0], "") + "\" /s /q");
+}
+
+global proc ADVITBNewyName ()
+{
+	global string $selectedFolder[];
+	string $CopyName = `asInstallScriptLocation` + "ExternalPlugins/AdvancedSkeleton/" + basename($selectedFolder[0], "");
+	string $NewName = `textFieldButtonGrp -q -tx NewNametextFieldButtonGrp`;
+	$NewName = `substitute " " $NewName "_"`;
+	string $NewNPath = `asInstallScriptLocation` + "ExternalPlugins/AdvancedSkeleton/" + $NewName;
+	if (`filetest -d $NewNPath`)
+	{
+		warning ("已存在该版本！！！");
+	}else
+	{
+		$CopyName = toNativePath($CopyName);
+		$NewName = toNativePath($NewName);
+		system ("rename \"" + $CopyName + "\" \"" + $NewName + "\"");
+		deleteUI NewNameWindow;
+		eval ("source \"" + `asInstallScriptLocation` + "ZSToolsBox.mel\"");
+	}
+}
+AdvancedSkeletonInstallToBox;

@@ -1,0 +1,531 @@
+//Author  :   LiuBen
+//Date    :   02/08/2018
+//Fix     :   07/30/2019   修改删除保存属性不执行的错误
+global string  $bb_attribute_save;
+
+proc bb_attribute_initialization()
+{
+	global string  $bb_attribute_save;
+	if(`optionVar -exists bb_attribute_save`)
+		$bb_attribute_save = `optionVar -q bb_attribute_save`;
+}
+
+global proc bb_attributeTool()
+{    
+	if (`window -q -exists bb_attributeToolWindow`) deleteUI bb_attributeToolWindow;
+	window -title "属性编辑" bb_attributeToolWindow; 
+		formLayout bb_attributeTool_form;
+			text -l "" bb_attributeTool_obj;
+			textScrollList -ams 1 bb_attributeTool_attrDisTSL;
+				popupMenu;
+					menuItem -label "Lock" -c "bb_attr_edit(1)";
+					menuItem -label "Unlock" -c "bb_attr_edit(2)";
+					menuItem -label "Hide" -c "bb_attr_edit(3)";
+					menuItem -label "Lock And Hide" -c "bb_attr_edit(4)";
+					menuItem -label "NonKeyable" -c "bb_attr_edit(5)";
+					menuItem -label "Keyable" -c "bb_attr_edit(6)";
+					menuItem -divider true;
+					menuItem -label "Delete" -c "bb_attr_edit(7)";
+					
+			button -l "∧\n∧\n∧"  -bgc 0 0.3 0.45 -c bb_attr_upApply bb_attributeTool_up;
+			button -l "∨\n∨\n∨"  -bgc 0 0.3 0.45 -c bb_attr_downApply bb_attributeTool_dn;            
+
+		tabLayout -innerMarginWidth 5 -innerMarginHeight 5 bb_attrTool_tabLayout;
+				columnLayout -adjustableColumn true bb_attributeTool_createLayout;
+					rowColumnLayout -numberOfColumns 2 -columnWidth 1 140 -columnWidth 2 30;
+						textField -text "Name" bb_attr_name;
+							popupMenu -p bb_attr_name -pmc ("bb_attr_nameSelect()") bb_attr_popupMenu;
+						button -l "保存" -bgc 0.44 0.93 0.44 -c bb_attr_save;
+					setParent ..;
+					rowColumnLayout -numberOfColumns 2 -columnWidth 1 70 -columnWidth 2 70;
+						radioCollection bb_attr_dataTypeChoose;
+							radioButton -label "Int" -cc "bb_attr_UIChange" bb_attr_dataType_int;
+							radioButton -label "Float" -select -cc "bb_attr_UIChange" bb_attr_dataType_float;
+							radioButton -label "Boolean" -cc "bb_attr_UIChange" bb_attr_dataType_boolean;
+							radioButton -label "Enum" -cc "bb_attr_UIChange" bb_attr_dataType_enum;
+					setParent ..; 
+					rowColumnLayout -numberOfColumns 2 -columnWidth 1 30 -columnWidth 2 60;
+						text -label "Min:";
+						floatField -w 60 -value 0 bb_attr_minFF;
+							popupMenu;
+								menuItem -label "-10" -c ("floatField -e -v "+"-10"+" bb_attr_minFF");
+								menuItem -label "-1" -c ("floatField -e -v "+"-1"+" bb_attr_minFF");
+								menuItem -label "0" -c ("floatField -e -v "+"0"+" bb_attr_minFF");
+								menuItem -label "1" -c ("floatField -e -v "+"1"+" bb_attr_minFF");
+								menuItem -label "10" -c ("floatField -e -v "+"10"+" bb_attr_minFF");
+						text -label "Max:";
+						floatField -w 60 -value 1 bb_attr_maxFF;
+							popupMenu;
+								menuItem -label "-10" -c ("floatField -e -v "+"-10"+" bb_attr_maxFF");
+								menuItem -label "-1" -c ("floatField -e -v "+"-1"+" bb_attr_maxFF");
+								menuItem -label "0" -c ("floatField -e -v "+"0"+" bb_attr_maxFF");
+								menuItem -label "1" -c ("floatField -e -v "+"1"+" bb_attr_maxFF");
+								menuItem -label "10" -c ("floatField -e -v "+"10"+" bb_attr_maxFF");
+					setParent ..;
+						textField  -en 0 -text "one,two" bb_attr_enumTF;
+					separator -height 10 -style "in";
+					button -l "创建"  -h 40 -bgc 0.1 0.1 0.1 -c bb_attr_apply;
+					separator -height 10 -style "in";
+					button -l "显示全部"  -bgc 0.9 0.9 0.9 -c "bb_attr_edit(0)";
+				setParent ..;
+
+				formLayout bb_attributeTool_saveLayout;
+				   textScrollList -w 170 -ams 1 -doubleClickCommand bb_attr_saveAdd bb_attributeTool_saveDisTSL;
+					   popupMenu;
+						   menuItem -label "Add" -c bb_attr_saveAdd;
+						   menuItem -label "Edit" -c bb_attr_saveEdit;
+						   menuItem -divider true;
+						   menuItem -label "Delete" -c "bb_attr_saveDelete(1)";
+						   menuItem -label "Clear All" -c "bb_attr_saveDelete(2)";
+				setParent ..;   
+				   formLayout -edit
+					-attachForm     "bb_attributeTool_saveDisTSL"     "top"    2
+					-attachForm     "bb_attributeTool_saveDisTSL"     "left"   2
+					-attachForm     "bb_attributeTool_saveDisTSL"     "right"  2
+					-attachForm     "bb_attributeTool_saveDisTSL"     "bottom" 2
+					bb_attributeTool_saveLayout;
+			setParent ..;
+
+		tabLayout -edit -tabLabel bb_attributeTool_createLayout "创建" -tabLabel bb_attributeTool_saveLayout "保存" bb_attrTool_tabLayout;
+		
+		formLayout -edit
+			-attachForm     "bb_attrTool_tabLayout"     "top"    5
+			-attachForm     "bb_attrTool_tabLayout"     "left"   5
+			-attachForm     "bb_attrTool_tabLayout"     "bottom" 5
+
+			-attachForm     "bb_attributeTool_obj"     "top"    5
+			-attachControl  "bb_attributeTool_obj"     "left"   5  "bb_attrTool_tabLayout"
+
+			-attachControl  "bb_attributeTool_attrDisTSL"     "top"    5  "bb_attributeTool_obj"
+			-attachControl  "bb_attributeTool_attrDisTSL"     "left"   5  "bb_attrTool_tabLayout"
+			-attachForm     "bb_attributeTool_attrDisTSL"     "bottom" 5   
+			-attachForm     "bb_attributeTool_attrDisTSL"     "right"  30
+			
+			-attachForm     "bb_attributeTool_up"     "top"    5  
+			-attachControl  "bb_attributeTool_up"     "left"   5  "bb_attributeTool_attrDisTSL"
+			-attachPosition "bb_attributeTool_up"     "bottom" 0 50    
+			-attachForm     "bb_attributeTool_up"     "right"  5
+			
+			-attachControl  "bb_attributeTool_dn"     "top"    5  "bb_attributeTool_up"
+			-attachControl  "bb_attributeTool_dn"     "left"   5  "bb_attributeTool_attrDisTSL"
+			-attachForm     "bb_attributeTool_dn"     "bottom" 5
+			-attachForm     "bb_attributeTool_dn"     "right"  5
+		
+		bb_attributeTool_form; 
+		scriptJob -parent "bb_attributeToolWindow" -replacePrevious -event "SelectionChanged" "bb_attr_reloadGeo";
+		
+	showWindow bb_attributeToolWindow;
+	bb_attr_reloadGeo;
+	bb_attribute_loadSave;
+}
+bb_attributeTool;
+
+global proc bb_attr_reloadGeo()
+{
+	string $getSelection[] = `ls -sl`;
+	if (size($getSelection)>0){
+		text -e -l $getSelection[0] bb_attributeTool_obj;
+		bb_attr_loadAttr($getSelection[0]);
+	}
+}
+
+global proc bb_attr_loadAttr(string $sel)
+{
+	textScrollList -e -removeAll bb_attributeTool_attrDisTSL;
+	string $generalAttr[] = {"translateX","translateY","translateZ","rotateX","rotateY","rotateZ","scaleX","scaleY","scaleZ","visibility"};
+	string $userAttr[] = `listAttr -userDefined $sel`;
+	string $allAttr[] = stringArrayCatenate($generalAttr,$userAttr);
+	for($i=0;$i<size($allAttr);$i++){
+		string $key[] = `listAttr -keyable -string $allAttr[$i] $sel`;
+		string $nonKye[] = `listAttr -channelBox -string $allAttr[$i] $sel`;
+		string $lock[] = `listAttr -locked -string $allAttr[$i] $sel`;
+		if((size($key) > 0) || (size($nonKye) > 0)){
+			string $lockSuffix = "          ";
+			if(size($lock) > 0){
+				$lockSuffix = $lockSuffix + "　（锁定）";
+			}
+			if(size($nonKye) > 0){
+				$lockSuffix = $lockSuffix + "（无关键帧）";
+			}
+			textScrollList -e -append ($allAttr[$i]+$lockSuffix) bb_attributeTool_attrDisTSL;
+		}   
+	}
+}
+
+global proc bb_attribute_loadSave()
+{
+	bb_attribute_initialization;
+	global string  $bb_attribute_save;
+	string $bb_attribute_saveArray[] = stringToStringArray($bb_attribute_save, "&");
+	for($i=0;$i<size($bb_attribute_saveArray);$i++){
+		textScrollList -e -append $bb_attribute_saveArray[$i] bb_attributeTool_saveDisTSL;
+	}
+} 
+
+global proc bb_attr_UIChange()
+{
+	string $sel = `radioCollection -q -select bb_attr_dataTypeChoose`;
+	if($sel == "bb_attr_dataType_enum"){
+		floatField -e -en 0 bb_attr_minFF;
+		floatField -e -en 0 bb_attr_maxFF;
+		textField -e -en 1 bb_attr_enumTF;
+	}
+	else if($sel == "bb_attr_dataType_boolean"){
+		floatField -e -en 0 bb_attr_minFF;
+		floatField -e -en 0 bb_attr_maxFF;
+		textField -e -en 0 bb_attr_enumTF;
+	}
+	else if($sel == "bb_attr_dataType_int" || $sel == "bb_attr_dataType_float"){
+		floatField -e -en 1 bb_attr_minFF;
+		floatField -e -en 1 bb_attr_maxFF;
+		textField -e -en 0 bb_attr_enumTF;
+	}
+}
+//添加属性
+global proc bb_attr_apply()
+{
+	string $attrType = `radioCollection -q -select bb_attr_dataTypeChoose`;
+	float $minFloat = `floatField -q -value bb_attr_minFF`;
+	float $maxFloat = `floatField -q -value bb_attr_maxFF`;
+	int $minInt = `floatField -q -value bb_attr_minFF`;
+	int $maxInt = `floatField -q -value bb_attr_maxFF`;
+	string $enumString = `textField -q -text bb_attr_enumTF`;
+	string $name = `textField -q -text bb_attr_name`;
+	
+	string $sel[] = `ls -sl`;
+	string $attrInfo[3];
+	$attrInfo[0] = $name;
+	for($i=0;$i<size($sel);$i++){
+		if($attrType == "bb_attr_dataType_int"){
+			$attrInfo[1] = "Int";
+			$attrInfo[2] = $minInt;
+			$attrInfo[3] = $maxInt;
+			bb_attr_addAttr($sel[$i],$attrInfo);
+		}
+		else if($attrType == "bb_attr_dataType_float"){
+			$attrInfo[1] = "Float";
+			$attrInfo[2] = $minFloat;
+			$attrInfo[3] = $maxFloat;
+			bb_attr_addAttr($sel[$i],$attrInfo);
+		}
+		else if($attrType == "bb_attr_dataType_boolean"){
+			$attrInfo[1] = "Boolean";
+			bb_attr_addAttr($sel[$i],$attrInfo);
+		}
+		else if($attrType == "bb_attr_dataType_enum"){
+			$attrInfo[1] = "Enum";
+			$attrInfo[2] = $enumString;
+			bb_attr_addAttr($sel[$i],$attrInfo);
+		}
+	}
+	bb_attr_reloadGeo;
+}
+
+//添加属性执行
+global proc bb_attr_addAttr(string $obj,string $attrInfo[])
+{
+	if($attrInfo[1] == "Int"){
+		int $minInt = $attrInfo[2];
+		int $maxInt = $attrInfo[3];
+		if($minInt != $maxInt)
+			addAttr -ln $attrInfo[0] -at long  -min $minInt -max $maxInt -dv 0 $obj;
+		else
+			addAttr -ln $attrInfo[0] -at long -dv 0 $obj;
+		setAttr -e -keyable true ($obj+"."+$attrInfo[0]);
+	}
+	else if($attrInfo[1] == "Float"){
+		float $minFloat = $attrInfo[2];
+		float $maxFloat = $attrInfo[3];
+		if($minFloat != $maxFloat)
+			addAttr -ln $attrInfo[0] -at double  -min $minFloat -max $maxFloat -dv 0 $obj;
+		else
+			addAttr -ln $attrInfo[0] -at double -dv 0 $obj;
+		setAttr -e -keyable true ($obj+"."+$attrInfo[0]);
+	}
+	else if($attrInfo[1] == "Boolean"){
+		addAttr -ln $attrInfo[0] -at bool  $obj;
+		setAttr -e -keyable true ($obj+"."+$attrInfo[0]);
+	}
+	else if($attrInfo[1] == "Enum"){
+		string $enumString;
+		string $endString = endString($attrInfo[2], 1);
+		if($endString != ",") $enumString = $attrInfo[2] + ",";
+		string $enum = substituteAllString($enumString, ",", ":");
+		addAttr -ln $attrInfo[0] -at "enum" -en $enum $obj;
+		setAttr -e -keyable true ($obj+"."+$attrInfo[0]);
+	}
+}
+
+//保存属性
+global proc bb_attr_save()
+{
+	global string  $bb_attribute_save;
+	string $attrType = `radioCollection -q -select bb_attr_dataTypeChoose`;
+	float $minFloat = `floatField -q -value bb_attr_minFF`;
+	float $maxFloat = `floatField -q -value bb_attr_maxFF`;
+	int $minInt = `floatField -q -value bb_attr_minFF`;
+	int $maxInt = `floatField -q -value bb_attr_maxFF`;
+	string $enumString = `textField  -q -text bb_attr_enumTF`;
+	string $name = `textField -q -text bb_attr_name`;
+	
+	string $addAttr;
+	
+	if($attrType == "bb_attr_dataType_int"){
+		$addAttr = $name + "    Int    " +  $minInt + "  ~  " + $maxInt;
+		textScrollList -e -append $addAttr bb_attributeTool_saveDisTSL;
+	}
+	else if($attrType == "bb_attr_dataType_float"){
+		$addAttr = $name + "    Float    " +  $minFloat + "  ~  " + $maxFloat;
+		textScrollList -e -append $addAttr bb_attributeTool_saveDisTSL;
+	}
+	else if($attrType == "bb_attr_dataType_boolean"){
+		$addAttr = $name + "    Boolean    ";
+		textScrollList -e -append $addAttr bb_attributeTool_saveDisTSL;
+	}
+	else if($attrType == "bb_attr_dataType_enum"){
+		$addAttr = $name + "    Enum    " +  $enumString;
+		textScrollList -e -append $addAttr bb_attributeTool_saveDisTSL;
+	}
+	$bb_attribute_save = $bb_attribute_save + "&" + $addAttr;
+	optionVar -stringValue bb_attribute_save $bb_attribute_save;
+	
+}
+//编辑属性
+global proc bb_attr_edit(int $edit)
+{
+	string $selObj[] = `ls -sl`;
+	string $selAttr[] = `textScrollList -q -selectItem bb_attributeTool_attrDisTSL`;
+	for($i=0;$i<size($selObj);$i++){
+		for($j=0;$j<size($selAttr);$j++){
+			string $editAttr[] = stringToStringArray($selAttr[$j], " ");
+			switch($edit){
+			case 1:
+				setAttr -lock true ($selObj[$i]+"."+$editAttr[0]);
+				break;
+			case 2:
+				setAttr -lock false ($selObj[$i]+"."+$editAttr[0]);
+				break;
+			case 3:
+				setAttr -keyable false -channelBox false ($selObj[$i]+"."+$editAttr[0]);
+				break;
+			case 4:
+				setAttr -lock true -keyable false -channelBox false ($selObj[$i]+"."+$editAttr[0]);
+				break;
+			case 5:
+				setAttr -keyable false -channelBox true ($selObj[$i]+"."+$editAttr[0]);
+				break;    
+			case 6:
+				setAttr -keyable true ($selObj[$i]+"."+$editAttr[0]);
+				break;
+			case 7:
+				deleteAttr -attribute $editAttr[0] $selObj[$i];
+				break;
+			}
+		}
+		if($edit == 0){
+			string $generalAttr[] = {"translateX","translateY","translateZ","rotateX","rotateY","rotateZ","scaleX","scaleY","scaleZ","visibility"};
+			string $userAttr[] = `listAttr -userDefined $selObj[$i]`;
+			string $allAttr[] = stringArrayCatenate($generalAttr,$userAttr);
+			for($k=0;$k<size($allAttr);$k++){
+				setAttr -keyable true ($selObj[$i]+"."+$allAttr[$k]);
+			}
+		}
+	}
+	bb_attr_reloadGeo;  
+}
+//返回右侧属性名称
+global proc string[] bb_attributeTool_attrNameReturn(string $attrArray[])
+{
+	string $attrReturn[];
+	for($i=0;$i<size($attrArray);$i++){
+		string $attr[] = stringToStringArray($attrArray[$i], " ");
+		$attrReturn[size($attrReturn)] = $attr[0];
+	}
+	return $attrReturn;
+}
+
+//保存属性添加
+global proc bb_attr_saveAdd()
+{
+	string $selAttr[] = `textScrollList -q -selectItem bb_attributeTool_saveDisTSL`;
+	string $selObj[] = `ls -sl`;
+	for($i=0;$i<size($selObj);$i++){
+		for($j=0;$j<size($selAttr);$j++){
+			string $attrResult =  substituteAllString($selAttr[$j], "~", "");
+			string $attrArray[] = stringToStringArray($attrResult, " ");
+			bb_attr_addAttr($selObj[$i],$attrArray);
+		}
+	}
+	bb_attr_reloadGeo;
+}
+
+//保存属性编辑
+global proc bb_attr_saveEdit()
+{
+	string $selAttr[] = `textScrollList -q -selectItem bb_attributeTool_saveDisTSL`;
+	tabLayout -edit -selectTab bb_attributeTool_createLayout bb_attrTool_tabLayout;
+	bb_attr_saveEditApply($selAttr[0]);
+}
+
+global proc bb_attr_saveEditApply(string $item)
+{  
+	string $attrResult =  substituteAllString($item, "~", "");
+	string $attrArray[] = stringToStringArray($attrResult, " ");
+	textField -e -text $attrArray[0] bb_attr_name;
+	if($attrArray[1] == "Int"){
+		float $min = $attrArray[2];
+		float $max = $attrArray[3];
+		radioCollection -e -select "bb_attr_dataType_int" bb_attr_dataTypeChoose;
+		floatField -e -value $min bb_attr_minFF;
+		floatField -e -value $max bb_attr_maxFF;
+	}
+	else if($attrArray[1] == "Float"){
+		float $min = $attrArray[2];
+		float $max = $attrArray[3];
+		radioCollection -e -select "bb_attr_dataType_float" bb_attr_dataTypeChoose;
+		floatField -e -value $min bb_attr_minFF;
+		floatField -e -value $max bb_attr_maxFF;
+	}
+	else if($attrArray[1] == "Boolean"){
+		radioCollection -e -select "bb_attr_dataType_boolean" bb_attr_dataTypeChoose;
+	}
+	else if($attrArray[1] == "Enum"){
+		radioCollection -e -select "bb_attr_dataType_enum" bb_attr_dataTypeChoose;
+		textField  -e -text $attrArray[2] bb_attr_enumTF;
+	}
+	bb_attr_UIChange;
+}
+
+
+//保存属性删除
+global proc bb_attr_saveDelete(int $mod)
+{
+	bb_attribute_initialization;
+	global string  $bb_attribute_save;
+	string $selAttr[] = `textScrollList -q -selectItem bb_attributeTool_saveDisTSL`;
+	switch($mod){
+	case 1:
+		for($i=0;$i<size($selAttr);$i++){
+			textScrollList -e -removeItem $selAttr[$i] bb_attributeTool_saveDisTSL;
+			$bb_attribute_save =  substituteAllString($bb_attribute_save, ("&" + $selAttr[$i]), "");
+		}
+		optionVar -stringValue bb_attribute_save $bb_attribute_save;
+		break;
+	case 2:
+		textScrollList -e -removeAll bb_attributeTool_saveDisTSL;
+		optionVar -stringValue bb_attribute_save "";
+		break;
+	}
+}
+
+//右键菜单
+global proc bb_attr_nameSelect()
+{
+	menu -e -dai bb_attr_popupMenu;
+	setParent -menu bb_attr_popupMenu;
+	string $allItems[] = `textScrollList -q -allItems bb_attributeTool_saveDisTSL`;
+	for($i=0;$i<size($allItems);$i++){
+		string $title[] = stringToStringArray($allItems[$i], " ");
+		menuItem -label $title[0] -c ("bb_attr_saveEditApply(\""+$allItems[$i]+"\")");
+	}
+}
+
+
+//向上
+global proc bb_attr_upApply()
+{
+	string $selObj[] = `ls -sl`;
+	string $allAttr[] = bb_attributeTool_attrNameReturn(`textScrollList -q -allItems bb_attributeTool_attrDisTSL`);
+	string $selAttrArray[] = `textScrollList -q -selectItem bb_attributeTool_attrDisTSL`;
+	string $selAttr[] = bb_attributeTool_attrNameReturn($selAttrArray);
+	
+	for($i=0;$i<size($selObj);$i++){
+		int $k = 0,$lock = 0,$t = 0;
+		for($j=0;$j<size($allAttr);$j++){
+			if($allAttr[$j] == $selAttr[$k]){
+				if($j>0){
+					if($k>0 && $allAttr[$j-1] == $selAttr[$k-1]){
+						$lock = `getAttr -l ($selObj[$i] + "." + $allAttr[$t])`;
+						if($lock != 0) setAttr -e -l 0 ($selObj[$i] + "." + $allAttr[$t]);
+						deleteAttr ($selObj[$i] + "." + $allAttr[$t]);
+						undo;
+						if($lock != 0) setAttr -e -l 1 ($selObj[$i] + "." + $allAttr[$t]);
+					}
+					else{
+						$lock = `getAttr -l ($selObj[$i] + "." + $allAttr[$j-1])`;
+						if($lock != 0) setAttr -e -l 0 ($selObj[$i] + "." + $allAttr[$j-1]);
+						deleteAttr ($selObj[$i] + "." + $allAttr[$j-1]);
+						undo;
+						if($lock != 0) setAttr -e -l 1 ($selObj[$i] + "." + $allAttr[$j-1]);
+						$t = $j - 1;
+					}
+					$k++;
+					for($l=$j+1;$l<size($allAttr);$l++){
+						$lock = `getAttr -l ($selObj[$i] + "." + $allAttr[$l])`;
+						if($lock != 0) setAttr -e -l 0 ($selObj[$i] + "." + $allAttr[$l]);
+						deleteAttr ($selObj[$i] + "." + $allAttr[$l]);
+						undo;
+						if($lock != 0) setAttr -e -l 1 ($selObj[$i] + "." + $allAttr[$l]);
+					}
+				}
+			}
+		}
+	}
+	bb_attr_reloadGeo; 
+	for($i=0;$i<size($selAttrArray);$i++){
+		textScrollList -e -selectItem $selAttrArray[$i] bb_attributeTool_attrDisTSL;
+	}
+}
+
+//向下
+global proc bb_attr_downApply()
+{
+	string $selObj[] = `ls -sl`;
+	string $allAttr[] = bb_attributeTool_attrNameReturn(`textScrollList -q -allItems bb_attributeTool_attrDisTSL`);
+	string $selAttrArray[] = `textScrollList -q -selectItem bb_attributeTool_attrDisTSL`;
+	string $selAttr[] = bb_attributeTool_attrNameReturn($selAttrArray);
+	
+	for($i=0;$i<size($selObj);$i++){
+		int $k = 0,$lock = 0,$t = 0,$n;
+		for($j=0;$j<size($allAttr);$j++){
+			if($allAttr[$j] == $selAttr[$k]){
+				if($allAttr[size($allAttr)-1] != $selAttr[size($selAttr)-1]){
+					if($k>0 && $allAttr[$j-1] == $selAttr[$k-1]){
+						for($m=$t;$m<$n;$m++){
+							$lock = `getAttr -l ($selObj[$i] + "." + $allAttr[$m])`;
+							if($lock != 0) setAttr -e -l 0 ($selObj[$i] + "." + $allAttr[$m]);
+							deleteAttr ($selObj[$i] + "." + $allAttr[$m]);
+							undo;
+							if($lock != 0) setAttr -e -l 1 ($selObj[$i] + "." + $allAttr[$m]);
+						}
+						$n++;
+							
+					}
+					else{
+						$t = $j;
+						$n = $j + 1;
+					}
+					$lock = `getAttr -l ($selObj[$i] + "." + $allAttr[$j])`;
+					if($lock != 0) setAttr -e -l 0 ($selObj[$i] + "." + $allAttr[$j]);
+					deleteAttr ($selObj[$i] + "." + $allAttr[$j]);
+					undo;
+					if($lock != 0) setAttr -e -l 1 ($selObj[$i] + "." + $allAttr[$j]); 
+					$k++;
+					for($l=$j+2;$l<size($allAttr);$l++){
+						$lock = `getAttr -l ($selObj[$i] + "." + $allAttr[$l])`;
+						if($lock != 0) setAttr -e -l 0 ($selObj[$i] + "." + $allAttr[$l]);
+						deleteAttr ($selObj[$i] + "." + $allAttr[$l]);
+						undo;
+						if($lock != 0) setAttr -e -l 1 ($selObj[$i] + "." + $allAttr[$l]);
+					}
+				}
+			}
+		}
+	}
+	bb_attr_reloadGeo; 
+	for($i=0;$i<size($selAttrArray);$i++){
+		textScrollList -e -selectItem $selAttrArray[$i] bb_attributeTool_attrDisTSL;
+	}
+}
+
+

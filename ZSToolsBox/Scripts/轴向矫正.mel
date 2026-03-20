@@ -1,0 +1,482 @@
+string $UiWinName = "ZhouXZWinUI";
+
+// 检查并删除已有窗口
+if (`window -exists $UiWinName`) {
+    deleteUI $UiWinName;
+}
+
+// 创建新窗口
+window -title "轴向修正工具" -widthHeight 320 320 $UiWinName;
+string $mainLayout = `columnLayout -adj true -rs 10 mainLayoutlay`;
+
+//将枢轴匹配到选择组件，
+separator  -style "in";
+string $buttonLayoutA = `rowLayout -numberOfColumns 3 -adj true -parent $mainLayout`;
+
+    button -h 40 -w 120 -label "选择组件修正物体轴向" -command "MoveTool;ZhouToSclPoint;" -annotation "选择点、线、面、执行";
+    checkBox -h 40 -w 100 -label "匹配旋转" -v 1 -annotation "勾选，匹配旋转轴" obj_pp_loc_checkBoxD;
+    separator  -w 100 -style "none";
+//在选定的点或物体创建locator，并把轴定位到点
+string $buttonLayoutB = `rowLayout -numberOfColumns 3 -adj true -parent $mainLayout`;
+    button -h 40 -w 120 -label "在选组件或物体创建loc" -command "MoveTool;ComponentAndObjCreateLoc;" -annotation "选择点、线、面、或者物体执行,当选择两个点或者两个物体时loc会指向第一个位置";
+    checkBox -h 40 -w 100 -label "匹配旋转" -v 1 -annotation "勾选，匹配旋转" obj_pp_loc_checkBoxC;
+    separator  -w 100 -style "none";
+
+string $mainLayoutC = `rowLayout -numberOfColumns 3 -adj true -parent $mainLayout`;
+    button -h 40 -w 120 -label "多点修正物体轴向" -command "MoveTool;XunHuanBianXZ;" -annotation "选择循环边，或者选择包含三个以上点的组件，（线、面）";
+    checkBox -h 40 -w 100 -label "修正物体轴" -v 1 -annotation "勾选，修正物体轴向" obj_pp_loc_checkBox;
+    checkBox -h 40 -w 100 -label "创建定位器" -v 0 -annotation "勾选，创建辅助定位器" del_loc_checkBox;
+//修正圆柱体轴向
+string $mainLayoutD = `rowLayout -numberOfColumns 3 -adj true -parent $mainLayout`;
+    button -h 40 -w 120 -label "两边修正圆柱轴向" -command "MoveTool;XiuZhengYZTZX;" -annotation "选择圆柱两个环的各一条边执行";
+    checkBox -h 40 -w 100 -label "修正物体轴" -v 1 -annotation "勾选，修正物体轴向" obj_pp_loc_checkBoxB;
+    checkBox -h 40 -w 100 -label "创建定位器" -v 0 -annotation "勾选，创建辅助定位器" del_loc_checkBoxB;
+
+//集成系统的轴操作命令
+string $mainLayoutE = `columnLayout -adj true -parent $mainLayout`;
+separator  -style "in";
+string $mainLayoutF = `flowLayout -columnSpacing 10 -parent $mainLayout`;
+button -h 40 -w 73 -label "中心枢轴" -command CenterPivot -annotation "中心枢轴";
+
+button -h 40 -w 73 -label "冻结变换" -command "makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 -pn 1" -annotation "冻物体结变换";
+
+button -h 40 -w 73 -label "烘焙枢轴" -command "performBakeCustomToolPivot 0" -annotation "烘焙物体枢轴";
+
+button -h 40 -w 73 -label "匹配变换" -command "matchTransform" -annotation "匹配两个物体的变换";
+
+// 添加帮助信息区域
+separator  -style "in";
+string $helpFramezhou = `frameLayout -labelVisible false -parent $mainLayout`;
+string $form = `formLayout -parent $helpFramezhou`;
+helpLine;
+
+// 显示窗口
+showWindow $UiWinName;
+///////////命令过程/////////
+///////////命令过程/////////
+
+// MEL 脚本：找出三个点组成的三角形面积最大的点,以第一个点为基准
+// 获取当前选择的点
+global proc string[] TriangularAreaPoint(string $selection[]){
+	// 存储最大的面积和对应的点对
+	float $maxArea = 0;
+	string $maxPoints[3];
+	// 计算所有点对之间的面积
+	int $i=0;
+	for ($j = $i + 1; $j < size($selection) - 1; $j++) {
+	    for ($k = $j + 1; $k < size($selection); $k++) {
+	        // 获取三个点的坐标
+	        vector $A = `pointPosition $selection[$i]`;
+	        vector $B = `pointPosition $selection[$j]`;
+	        vector $C = `pointPosition $selection[$k]`;
+	        // 计算两个向量 AB 和 AC
+	        vector $AB = $B - $A;
+	        vector $AC = $C - $A;
+	        // 计算叉积
+	        vector $crossProduct = `cross $AB $AC`;
+	        // 计算三角形的面积
+	        float $area = 0.5 * `mag($crossProduct)`;
+	        // 如果面积更大，更新最大面积和点对
+	        if ($area > $maxArea) {
+	            $maxArea = $area;
+	            $maxPoints[0] = $selection[$i];
+	            $maxPoints[1] = $selection[$j];
+	            $maxPoints[2] = $selection[$k];
+	        }
+	    }
+	}
+	return $maxPoints;
+}
+
+///计算循环边的中心轴///
+global proc float[] GetCentralSelComp(){
+	ConvertSelectionToVertices;
+	string $selectedPoints[] = `ls -sl -fl`;
+	int $numPoints = size($selectedPoints);
+	float $sumX;
+	float $sumY;
+	float $sumZ;
+	for ($j = 0; $j < $numPoints; $j++) {
+	    float $pointPos[] = `pointPosition $selectedPoints[$j]`;
+	    $sumX += $pointPos[0];
+	    $sumY += $pointPos[1];
+	    $sumZ += $pointPos[2];
+	}
+	float $mid[]={};
+	$mid[0] = $sumX / $numPoints;
+	$mid[1] = $sumY / $numPoints;
+	$mid[2] = $sumZ / $numPoints;
+	return $mid;
+
+}
+
+//////////////////////////////
+//计算三个点坐标围成的三角形的法线
+global proc vector calculateNormal(vector $p1, vector $p2, vector $p3) {
+    // Calculate two edge vectors
+    vector $edge1 = <<($p2.x - $p1.x), ($p2.y - $p1.y), ($p2.z - $p1.z)>>;
+    vector $edge2 = <<($p3.x - $p1.x), ($p3.y - $p1.y), ($p3.z - $p1.z)>>;
+    
+    // Calculate the cross product of the two edges
+    vector $normal = <<($edge1.y * $edge2.z - $edge1.z * $edge2.y),
+                       ($edge1.z * $edge2.x - $edge1.x * $edge2.z),
+                       ($edge1.x * $edge2.y - $edge1.y * $edge2.x)>>;
+    // Normalize the resulting vector
+    float $length = mag($normal);
+    if ($length > 0.0) {
+        $normal /= $length;
+    }
+    return $normal;
+}
+//匹配两个物体轴
+global proc MatchObjectAxes(string $objA_name,string $objB_name){
+	float $pos[3];
+	float $angleb[] = `xform -q -ws -ro $objB_name`; // 计算角度
+	$pos = `xform -q -ws -rp $objB_name`;
+	$cmd = ("xform -ws -piv "+$pos[0]+" "+ $pos[1]+" "+ $pos[2]+" \""+ $objA_name+ "\"");
+	evalEcho $cmd;
+	//select -r $sel_obj_name[0] ;
+	rotate -r 0 0 (-$angleb[2]) $objA_name;
+	rotate -r 0 (-$angleb[1]) 0 $objA_name;
+	rotate -r (-$angleb[0]) 0 0 $objA_name;
+	makeIdentity -apply true -t 0 -r 1 -s 0 -n 0 -pn 1 $objA_name;
+	rotate -r ($angleb[0]) ($angleb[1]) ($angleb[2]) $objA_name;
+}
+//计算两个坐标的中点////////////
+global proc vector calculateMidpoint(vector $center1, vector $center2) {
+    // 计算两个中心点连线的中点
+	vector $midpoint = ($center1 + $center2) / 2.0;
+	// 打印结果
+	print ("Midpoint Center: " + $midpoint + "\n");
+	return $midpoint;
+}
+// 定义获取物体中心世界坐标的函数
+global proc vector getWorldCenterA(string $object) {
+	  select $object;
+	  string $objects[] = `ls -sl -type "transform"`; // 筛选出变换节点（物体通常是 transform 类型）
+	  print($objects);
+    // 获取物体的包围盒
+    if(size($objects)>0){
+    	  float $boundingBox[] = `manipMoveContext -q -p "Move" $object`;
+	    // 计算中心点坐标
+	    float $centerX = $boundingBox[0];
+	    float $centerY = $boundingBox[1];
+	    float $centerZ = $boundingBox[2];
+	    return <<$centerX, $centerY, $centerZ>>;
+    }
+    else{
+    	  float $boundingBox[] = `xform -q -ws -boundingBox $object`;
+	    // 计算中心点坐标
+	    float $centerX = ($boundingBox[0] + $boundingBox[3]) / 2.0;
+	    float $centerY = ($boundingBox[1] + $boundingBox[4]) / 2.0;
+	    float $centerZ = ($boundingBox[2] + $boundingBox[5]) / 2.0;
+	    return <<$centerX, $centerY, $centerZ>>;
+    }
+}
+// 定义全局过程来获取并处理所选物体的坐标，返回坐标信息
+global proc getSelectedObjectsCoordsA(float $returnPos[])
+{
+    string $selectedObjects[] = `ls -sl`;  // 获取当前选择的所有物体列表
+    int $numSelected = size($selectedObjects);  // 获取选择物体的数量
+    
+    if ($numSelected == 0)  // 如果没有选择物体
+    {
+        print("请选择至少一个物体。\n");
+        //return;
+    }
+    else if ($numSelected == 1)  // 如果只选择了一个物体
+    {
+        $returnPos = `getWorldCenterA($selectedObjects[0])`;  // 获取该物体在世界坐标下的平移坐标（位置）
+        return;
+    }
+    else  // 如果选择了多个物体
+    {
+        float $totalPos[] = {0, 0, 0};  // 用于累计所有物体坐标的总和，初始化为0
+        for ($i = 0; $i < $numSelected; $i++)  // 遍历每个所选物体
+        {
+            float $pos[] = `getWorldCenterA($selectedObjects[$i])`;  // 获取当前物体在世界坐标下的平移坐标
+            $totalPos[0] += $pos[0];  // 累加X坐标
+            $totalPos[1] += $pos[1];  // 累加Y坐标
+            $totalPos[2] += $pos[2];  // 累加Z坐标
+        }
+        $totalPos[0] /= $numSelected;  // 计算平均X坐标
+        $totalPos[1] /= $numSelected;  // 计算平均Y坐标
+        $totalPos[2] /= $numSelected;  // 计算平均Z坐标
+        
+        $returnPos = $totalPos;
+		return;
+    }
+
+}
+
+//将物体枢轴和旋转匹配到loc
+global proc ThroughEconomicReformsRo(string $objname,string $LocatorName){
+	float $pos[3];
+	$pos = `xform -q -ws -rp $LocatorName`;
+	$cmd = ("xform -ws -piv "+$pos[0]+" "+ $pos[1]+" "+ $pos[2]+" \""+ $objname+ "\"");
+	evalEcho $cmd;
+	float $LocatorWsRo[]=`xform -q -ws -ro $LocatorName`;//获取loc修正后的世界旋转
+	//string $templocname[] = `duplicate -n ($LocatorName+"temp") $LocatorName`;
+	string $PaConstraintNam[] = `parentConstraint -mo -weight 1 $LocatorName $objname`;
+	string $parentname[] = `listRelatives -p $objname`;//获取当前父物体
+	if(size($parentname)>0){
+		string $OrConstraintNam[] = `orientConstraint -offset 0 0 0 -weight 1 $parentname[0] $LocatorName`;//父级约束临时loc旋转
+		delete $PaConstraintNam[0];//删除父子约束
+		makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 -pn 1 $objname;//冻结物体变换
+		delete $OrConstraintNam[0];//删除旋转约束
+		string $PaConstraintNamB[] = `parentConstraint -mo -weight 1 $LocatorName $objname`;//loc约束物体
+		vector $SetLocatorWsRoB=`xform -ws -ro $LocatorWsRo[0] $LocatorWsRo[1] $LocatorWsRo[2] $LocatorName`;//loc当前世界旋转
+		delete $PaConstraintNamB[0] ;//清理辅助物体和约束
+	}
+	else{
+		vector $SetLocatorWsRoC=`xform -ws -ro 0 0 0 $LocatorName`;//loc当前世界旋转
+		delete $PaConstraintNam[0];//删除父子约束
+		makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 -pn 1 $objname;//冻结物体变换
+		string $PaConstraintNamB[] = `parentConstraint -mo -weight 1 $LocatorName $objname`;//loc约束物体
+		vector $SetLocatorWsRoB=`xform -ws -ro $LocatorWsRo[0] $LocatorWsRo[1] $LocatorWsRo[2] $LocatorName`;//loc当前世界旋转
+		delete $PaConstraintNamB[0] ;//清理辅助物体和约束
+	}
+}
+
+////以上过程是会用的命令
+/////////////////////////////////////////////////////////////////
+/*通过循环边修正轴
+用法，选择三个以上的点，或者选择循环边运行（选点时候三个点尽量离得远）*/
+/*用法，选择三个以上的点，或者选择循环边运行（选点时候三个点尽量离得远）*/
+global proc XunHuanBianXZ() {
+	string $sel[] = `ls -selection -fl`;
+	ConvertSelectionToVertices;
+	string $selponit[] = `ls -selection -fl`;
+	int $del_loc = `checkBox -q -value del_loc_checkBox`;//是否删除辅助定位器
+	int $obj_pp_loc = `checkBox -q -value obj_pp_loc_checkBox`;//是否将模型坐标匹配到loc
+	if(size($selponit)<3){
+		select -r $sel;
+		ZhouToSclPoint;
+	}else{
+		// 声明一个字符串数组用来存储分割结果
+		string $sel_obj_name[];
+		// 使用 tokenize 命令按 "." 分割字符串
+		tokenize($sel[0], ".", $sel_obj_name);
+		///计算循环边的中心轴///
+		float $central[] = GetCentralSelComp();
+		string $zj_loc_name[] = `spaceLocator -p 0 0 0`;//创建定位器
+		move -r $central[0] $central[1] $central[2] $zj_loc_name[0];
+		//找出三个点组成的三角形面积最大的点
+		select -r $selponit;
+		string $selection[] = `ls -selection -fl`;//转换选择为点
+		string $point_out_nam[] = TriangularAreaPoint($selection);
+		print($point_out_nam);
+		//获取三角形三个点的坐标
+		vector $world_PosA = `pointPosition -w $point_out_nam[0]`;
+		vector $world_PosB = `pointPosition -w $point_out_nam[1]`;
+		vector $world_PosC = `pointPosition -w $point_out_nam[2]`;
+		vector $normal = calculateNormal($world_PosA, $world_PosB, $world_PosC);//计算三角形法线
+		print ($normal + "\n");
+		vector $loc_pos=`pointPosition -w $zj_loc_name[0]`;//获取loc的pos
+		vector $targetA = $normal+$loc_pos;//将法线坐标偏移到loc
+	
+		////将loc定位器旋转匹配到法线方向
+		vector $target = $targetA; // 替换为目标坐标
+		string $object = $zj_loc_name[0]; // 替换为你的物体名
+		
+		vector $pos = `xform -q -ws -t $object`; // 获取物体当前位置
+		vector $dir = unit($target - $pos); // 计算方向向量
+		
+		float $angleb[] = `angleBetween -euler -v1 1 0 0 -v2 ($dir.x) ($dir.y) ($dir.z)`; // 计算角度
+		rotate -a -ws $angleb[0] $angleb[1] $angleb[2] $object; // 应用旋转
+		
+		///////////////将物体轴匹配到loc//////////////////
+		string $objectB = $zj_loc_name[0]; // 替换为你的物体名
+		//select -cl  ;
+		//将物体轴向匹配到loc
+		if($obj_pp_loc == 1){
+			ThroughEconomicReformsRo($sel_obj_name[0],$objectB);
+		}
+		//删除辅助物体
+		if($del_loc==0){
+			delete $zj_loc_name[0]; 
+		}
+		select -cl;
+		select $sel_obj_name[0];
+	}
+
+}
+
+////////////////////////////////////////////////////////////
+/*修正圆柱体轴向
+这个脚本用来获取丢失轴向的圆柱或者管状物体的选装轴向，主要用来修正汽车和机械类齿轮，机械轴，和轮胎类的轴向。脚本思路是通过两条循环边创建圆环曲线，获取曲线的中心轴位置，并且创建定位器，然后用一个圆环目标约束定位器，获取旋转轴
+用法，选择可循环的边，远端和近端各选择一条边，必须是独立的两条边（例如：pCylinder1.e[0] pCylinder1.e[9] 中括号的0和1为独立的边编号，不能超过两个独立边）。*/
+//////////////////////////////
+//通过两个循环边对齐圆柱坐标//////
+global proc XiuZhengYZTZX(){
+	string $sel[] = `ls -selection`;
+	int $del_loc = `checkBox -q -value del_loc_checkBoxB`;//是否删除辅助定位器
+	int $obj_pp_loc = `checkBox -q -value obj_pp_loc_checkBoxB`;//是否将模型坐标匹配到loc
+	
+	if (size ($sel) < 2)
+	{
+	    error ("未选择足够的对象..退出\n");
+	}
+	if (size($sel) > 2)
+	{
+	    warning ("选择了两个以上的对象。将取前两个对象计算。");
+	}
+	    
+	// 声明一个字符串数组用来存储分割结果
+	string $sel_obj_name[];
+	// 使用 tokenize 命令按 "." 分割字符串
+	tokenize($sel[0], ".", $sel_obj_name);
+	string $dd;
+	float $pos_A[]={};
+	float $pos_B[]={};
+	////////////////////
+	for ($i=0;$i<2;$i++){
+	    string $dd = $sel[$i];
+	    select -r $dd;
+	    SelectContiguousEdges;
+	    if($i==0){
+	    	  $pos_A = GetCentralSelComp();
+	    }
+	    else if($i==1){
+	        $pos_B = GetCentralSelComp();;
+	    }
+	    //print("中间位置坐标为: (" + $midX + ", " + $midY + ", " + $midZ + ")\n");
+	}
+	vector $center1=<<$pos_A[0],$pos_A[1],$pos_A[2]>>;
+	vector $center2=<<$pos_B[0],$pos_B[1],$pos_B[2]>>;
+	float $ZJ_points[] = calculateMidpoint($center1,$center2);
+	string $zj_loc_name[] = `spaceLocator -p 0 0 0`;
+	move -r $ZJ_points[0] $ZJ_points[1] $ZJ_points[2] $zj_loc_name[0];
+	
+	print($pos_A);
+	print($pos_B);
+	clear($pos_A);
+	clear($pos_B);
+	
+	//////////////设置locator位置和旋转///////////////////
+	vector $target = $center1; // 替换为目标坐标
+	string $object = $zj_loc_name[0]; // 替换为你的物体名
+	vector $pos = `xform -q -ws -t $object`; // 获取物体当前位置
+	vector $dir = unit($target - $pos); // 计算方向向量
+	float $angleb[] = `angleBetween -euler -v1 1 0 0 -v2 ($dir.x) ($dir.y) ($dir.z)`; // 计算角度
+	rotate -a -ws $angleb[0] $angleb[1] $angleb[2] $object; // 应用旋转
+	//select -cl  ;
+	//将物体轴向匹配到loc
+	if($obj_pp_loc == 1){
+	    ThroughEconomicReformsRo($sel_obj_name[0],$object);
+	}
+	//删除辅助物体
+	if($del_loc==0){
+		delete $zj_loc_name[0]; 
+	}
+	select $sel_obj_name[0];
+}
+
+/////////在选择物体创建locator
+global proc SelectObjectSel(){
+	int $changeRoation = `checkBox -q -value obj_pp_loc_checkBoxC`;//是否匹配旋转
+	string $objects[] = `ls -sl`; 
+	int $objnum=size($objects);
+	// 示例用法，调用全局过程并获取返回的坐标变量
+	float $coords[];
+	getSelectedObjectsCoordsA($coords);
+	string $loc_name[] = `spaceLocator -p 0 0 0`;
+	move -r $coords[0] $coords[1] $coords[2] $loc_name[0];
+	if($objnum==1){
+	    matchTransform $loc_name[0] $objects[0];
+	}
+	if($objnum==2){
+		float $mubiaos[] = getWorldCenterA($objects[0]);
+		vector $target = <<$mubiaos[0],$mubiaos[1],$mubiaos[2]>>; // 替换为目标坐标
+		string $object = $loc_name[0]; // 替换为你的物体名
+		vector $pos = `xform -q -ws -t $object`; // 获取物体当前位置
+		vector $dir = unit($target - $pos); // 计算方向向量
+		float $angleb[] = `angleBetween -euler -v1 1 0 0 -v2 ($dir.x) ($dir.y) ($dir.z)`; // 计算角度
+		rotate -a -ws $angleb[0] $angleb[1] $angleb[2] $object; // 应用旋转
+	}
+	if ($changeRoation == 0) {
+    setAttr ($loc_name[0]+".rotateZ") 0;
+    setAttr ($loc_name[0]+".rotateX") 0;
+    setAttr ($loc_name[0]+".rotateY") 0;
+	}
+	select $loc_name[0] ;
+}
+//在选择的组件创建locator，
+global proc ComponentCreateLoc(){
+	int $changeRoation = `checkBox -q -value obj_pp_loc_checkBoxC`;//是否匹配旋转
+	setToolTo moveSuperContext;
+	string $shapesel[] = `ls -sl -o`;
+	string $objsel[] = `listRelatives -p $shapesel[0]`;
+	string $vtxsel[]=`ls -sl`;
+	float $trans[]=`manipMoveContext -q -p "Move"`;
+	manipMoveContext -e -mode 10 "Move";
+	float $ro[]=`manipMoveContext -q -oa "Move"`;
+	$ro[0] = `rad_to_deg $ro[0]`;
+	$ro[1] = `rad_to_deg $ro[1]`;
+	$ro[2] = `rad_to_deg $ro[2]`;
+	string $loc_name[] = `spaceLocator -p 0 0 0`;
+	//select -r $loc_name[0]; 
+	move -ws $trans[0] $trans[1] $trans[2] $loc_name[0];
+	
+		if($changeRoation == 1)
+		{
+			rotate -r ($ro[0]) ($ro[1]) ($ro[2]) $loc_name[0];
+		}
+}
+
+//在组件或物体创建定位器（可多选物体）
+global proc ComponentAndObjCreateLoc(){
+    string $objectsA[] = `ls -sl -type "transform"`; // 筛选出变换节点（物体通常是 transform 类型）
+    int $sclobjnum=size($objectsA);
+    if($sclobjnum>0){
+        SelectObjectSel;
+    }
+    else{
+         ComponentCreateLoc;
+    }
+}
+//select points
+//将枢轴匹配到选择的组件，
+global proc ZhouToSclPoint(){
+	int $changeRoation = `checkBox -q -value obj_pp_loc_checkBoxD`;//是否匹配旋转
+	setToolTo moveSuperContext;
+	string $shapesel[] = `ls -sl -o`;
+	string $objsel[] = `listRelatives -p $shapesel[0]`;
+	string $vtxsel[]=`ls -sl`;
+	float $trans[]=`manipMoveContext -q -p "Move"`;
+	manipMoveContext -e -mode 10 "Move";
+	float $ro[]=`manipMoveContext -q -oa "Move"`;
+	$ro[0] = `rad_to_deg $ro[0]`;
+	$ro[1] = `rad_to_deg $ro[1]`;
+	$ro[2] = `rad_to_deg $ro[2]`;
+	select -r $objsel[0]; 
+	move -rpr -ws $trans[0] $trans[1] $trans[2] ($objsel[0]+".scalePivot") ($objsel[0]+".rotatePivot") ;
+	string $loc_name[] = `spaceLocator -p 0 0 0`;//创建定位器
+	move -ws $trans[0] $trans[1] $trans[2] $loc_name[0];
+	rotate -r ($ro[0]) ($ro[1]) ($ro[2]) $loc_name[0];
+
+		if($changeRoation >0 )
+		{
+			ThroughEconomicReformsRo($objsel[0],$loc_name[0]);
+		}
+		else
+		{
+			xform -ws -eu -ra ($ro[0]) ($ro[1]) ($ro[2]) $objsel[0];
+			//manipMoveContext -e -mode 4;
+		}
+	delete $loc_name[0] ;//清理辅助物体
+	select $objsel[0];
+
+}
+
+
+
+
+
+
+
+
+
+
+
+

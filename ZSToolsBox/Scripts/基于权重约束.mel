@@ -1,0 +1,107 @@
+//基于权重约束
+global proc ConstrainByJointsWindow ()
+{
+	if (`window -exists "ConstrainByJointsWindow"`)
+	{
+		deleteUI -window "ConstrainByJointsWindow";
+	}
+	window -title "基于权重约束" -h 50 -w 200 -rtf 1 -s 0 -tlb 1 ConstrainByJointsWindow;
+		columnLayout -columnAttach both 5 -adjustableColumn true -p ConstrainByJointsWindow ConstrainByJointscolumnLayout;
+		separator -h 5 -style "none";
+		textFieldButtonGrp -adj 2 -columnWidth3 60 90 40 -label "约束对象：" -tx "" -buttonLabel "获取" -buttonCommand "GettargetName" ConstraintargettextFieldButtonGrp;
+		floatFieldGrp -adj 2 -columnWidth2 60 130 -label "设定精度：" -value1 0.001 -precision 5 IgnoreBelowfloatFieldGrp;
+		button -c "ConstrainNow" -label "执行";
+		checkBoxGrp -numberOfCheckBoxes 3 -cl3 "left" "left" "left" -labelArray3 "父子约束" "缩放约束" "百分比化" -v1 1 -v2 0 -v3 1 SetcheckBoxGrp;
+		separator -h 5 -style "none";
+	showWindow ConstrainByJointsWindow;
+}
+
+//获取约束对象
+global proc GettargetName ()
+{
+	textFieldButtonGrp -e -tx `ls -sl` ConstraintargettextFieldButtonGrp;
+}
+
+//执行
+global proc ConstrainNow ()
+{
+	string $Constraintarget = `textFieldButtonGrp -q -tx ConstraintargettextFieldButtonGrp`;
+	string $selectedVertices[] = `ls -sl -fl`;
+	string $ShapeName[];
+	tokenize($selectedVertices[0],".",$ShapeName);
+	string $SkinClusterName = findRelatedSkinCluster($ShapeName[0]);
+	//获取选中顶点并重新计算权重
+	float $IgnoreValue = `floatFieldGrp -q -value1 IgnoreBelowfloatFieldGrp`;
+	
+	if (size($selectedVertices) == 0) {
+	    error "请先选择一些顶点";
+	    return;
+	}
+	
+	// 使用第一个顶点的权重信息初始化
+	string $selectedVerticesMergeSkinName[] = `skinPercent -ignoreBelow $IgnoreValue -q -transform $SkinClusterName $selectedVertices[0]`;
+	float $selectedVerticesMergeSkinValue[] = `skinPercent -ignoreBelow $IgnoreValue -q -value $SkinClusterName $selectedVertices[0]`;
+	
+	// 处理其他顶点
+	for ($i = 1; $i < size($selectedVertices); $i++) {
+	    string $selectedVerticesSkinName[] = `skinPercent -ignoreBelow $IgnoreValue -q -transform $SkinClusterName $selectedVertices[$i]`;
+	    float $selectedVerticesSkinValue[] = `skinPercent -ignoreBelow $IgnoreValue -q -value $SkinClusterName $selectedVertices[$i]`;
+	    
+	    for ($a = 0; $a < size($selectedVerticesSkinName); $a++) {
+	        int $foundIndex = -1;
+	        
+	        // 查找关节是否已存在
+	        for ($b = 0; $b < size($selectedVerticesMergeSkinName); $b++) {
+	            if ($selectedVerticesMergeSkinName[$b] == $selectedVerticesSkinName[$a]) {
+	                $foundIndex = $b;
+	                break;
+	            }
+	        }
+	        
+	        if ($foundIndex != -1) {
+	            // 累加权重
+	            $selectedVerticesMergeSkinValue[$foundIndex] += $selectedVerticesSkinValue[$a];
+	        } else {
+	            // 添加新关节
+	            int $newIndex = size($selectedVerticesMergeSkinName);
+	            $selectedVerticesMergeSkinName[$newIndex] = $selectedVerticesSkinName[$a];
+	            $selectedVerticesMergeSkinValue[$newIndex] = $selectedVerticesSkinValue[$a];
+	        }
+	    }
+	}
+	if (`checkBoxGrp -q -v3 SetcheckBoxGrp` == 1)
+	{
+		$selectedVerticesMergeSkinValue = PercentileConversion ( $selectedVerticesMergeSkinValue );
+	}
+	if (`checkBoxGrp -q -v1 SetcheckBoxGrp` == 1)
+	{
+		for ($i=0; $i<size($selectedVerticesMergeSkinValue); $i++)
+		{
+			parentConstraint -w $selectedVerticesMergeSkinValue[$i] -mo $selectedVerticesMergeSkinName[$i] $Constraintarget;
+		}
+		setAttr ($Constraintarget + "_parentConstraint1.interpType") 2;
+	}
+	if (`checkBoxGrp -q -v2 SetcheckBoxGrp` == 1)
+	{
+		for ($i=0; $i<size($selectedVerticesMergeSkinValue); $i++)
+		{
+			scaleConstraint -w $selectedVerticesMergeSkinValue[$i] -mo $selectedVerticesMergeSkinName[$i] $Constraintarget;
+		}
+	}
+}
+
+//百分比化
+global proc float[] PercentileConversion ( float $InputFloat[] )
+{
+	float $total = 0.0;
+	for ($value in $InputFloat)
+	{
+        $total += $value;
+    }
+	for ($i=0; $i<size($InputFloat); $i++)
+	{
+        $InputFloat[$i] = $InputFloat[$i]/$total;
+    }
+    return $InputFloat;
+}
+ConstrainByJointsWindow();

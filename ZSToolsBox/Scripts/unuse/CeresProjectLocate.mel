@@ -1,0 +1,965 @@
+if (`workspaceControl -exists CeresProjectLocateprocWorkspaceControl`)
+{
+	deleteUI CeresProjectLocateprocWorkspaceControl;
+	workspaceControl -visible 1 -hp free -ih 250 -iw 250 -rsh 250 -rsw 250 -dtc Outliner bottom -retain false -floating 0 -uiScript "CeresProjectLocateproc" -label "版本管理软件项目定位V.5" CeresProjectLocateprocWorkspaceControl;
+}else
+{
+	workspaceControl -visible 1 -hp free -ih 250 -iw 250 -rsh 250 -rsw 250 -dtc Outliner bottom -retain false -floating 0 -uiScript "CeresProjectLocateproc" -label "版本管理软件项目定位V.5" CeresProjectLocateprocWorkspaceControl;
+}
+global proc CeresProjectLocateproc()
+{
+	string $scriptsPath = `internalVar -userScriptDir`;
+	string $filePath = $scriptsPath + "ZSToolsBox/PublicFiles/Projets.txt";
+	$fileId=`fopen $filePath "r"`;
+	string $TextLine = `fgetline $fileId`;
+	fclose $fileId;
+	string $ArrayTextLine[] = stringToStringArray( $TextLine, ";" );
+	columnLayout -columnAttach both 5 -adjustableColumn true CeresProjectLocatecolumnLayout;
+	rowLayout -nc 2 -columnWidth2 125 125 -adj 2 -p CeresProjectLocatecolumnLayout;
+		text -w 125 "资产代号";
+		text -w 125 "资产备注";
+	rowLayout -nc 2 -columnWidth2 125 125 -adj 2 -p CeresProjectLocatecolumnLayout;
+		textScrollList -hlc 0.5 0.5 0.5 -w 125 -h 135 -numberOfRows 10 -dkc "AssettextScrollListDelete" -sc "AssetCodetextselectCommand" -dcc "EditWindow" -allowMultiSelection 0 AssetCodetextScrollList;
+		textScrollList -hlc 0.5 0.5 0.5 -w 125 -h 135 -numberOfRows 10 -dkc "AssettextScrollListDelete" -sc "AssetNotetextselectCommand" -dcc "EditWindow" -allowMultiSelection 0 AssetNotetextScrollList;
+	textScrollList -p CeresProjectLocatecolumnLayout -hlc 0.5 0.5 0.5 -w 250 -h 2 -m 1 -dkc "AssettextScrollListDelete" -sc "AssetPathtextselectCommand" -dcc "EditWindow" -allowMultiSelection 0 AssetPathtextScrollList;
+	separator -h 3 -w 250 -style "none" -p CeresProjectLocatecolumnLayout;
+	rowLayout -nc 5 -columnWidth5 25 50 46 60 60 -adj 5 -p CeresProjectLocatecolumnLayout;
+		button -c "ShowPrePath" -w 15 -h 20 -ann "显示所有资产路径" -label "◆" ShowPrePathbutton;
+		text "当前项目：";
+		textField -w 45 -editable false -bgc 0.265 0.265 0.265 -hlc 1 1 1 -dif 1 -tx "无"  -ann "右键选择项目" CeresProjectTextField;
+			popupMenu -button 3;
+			for ($i=0; $i<size($ArrayTextLine); $i++)
+			{
+				string $ProjetContent[] = stringToStringArray( $ArrayTextLine[$i], "=" );
+				menuItem -label $ProjetContent[0] -c ("eval(\"textField -e -tx \" + \"\\\"" + $ProjetContent[0] + "\\\"\" + \"CeresProjectTextField\");optionVar -sv CeresNowProject \"" + $ProjetContent[1] + "\";AutoSaveLastProject;LocPreGet;PublicPreGet;AutoLastFile;");
+			}
+		button -c "CeresProjectLocatechangetowindowsfilepath" -w 60 -h 17 -bgc 0.4 0.2 0.2 -ann "打开文件所在本地目录" -label "本地";
+		button -c "CeresProjectLocatechangetoCeres" -w 60 -h 17 -bgc 0.2 0.2 0.4 -ann "在Ceres打开对应文件" -label "Ceres";
+	separator -h 10 -w 250 -style "shelf" -p CeresProjectLocatecolumnLayout;
+	textScrollList -p CeresProjectLocatecolumnLayout -hlc 0.35 0.35 0.35 -w 250 -h 2 -m 1 -dkc "LocPreDelete" -sc "LocPreLoad" -dcc "LocPreRename" -allowMultiSelection 0 LocPretextScrollList;
+	textScrollList -p CeresProjectLocatecolumnLayout -hlc 0.35 0.35 0.35 -w 250 -h 2 -m 1 -sc "PublicPreLoad" -allowMultiSelection 0 PublicPretextScrollList;
+	rowLayout -nc 6 -columnWidth6 23 10 23 10 25 100 -adj 6 -p CeresProjectLocatecolumnLayout;
+		button -c "AssetWTPre" -w 23 -h 20 -bgc 0.2 0.2 0.2 -ann "载入常用WT公用预设" -label "WT";
+		button -c "WTSend" -w 10 -h 20 -bgc 0.5 0.1 0.1 -ann "WT更新至公盘" -label "︽";
+		button -c "AssetMOPre" -w 23 -h 20 -bgc 0.2 0.2 0.2 -ann "载入常用MO公用预设" -label "MO";
+		button -c "MOSend" -w 10 -h 20 -bgc 0.5 0.1 0.1 -ann "MO更新至公盘" -label "︽";
+		button -c "LocPre" -w 24 -h 20 -ann "本地预设，重新展开时将刷新本地预设" -label "私◆" LocPrebutton;
+		rowLayout -nc 3 -columnWidth3 24 60 60 -adj 3;
+			button -c "PublicPre" -w 24 -h 20 -ann "公盘预设，重新展开时将刷新本地预设" -label "公◆" PublicPrebutton;
+			button -c "AssetImport" -w 60 -h 20 -ann "导入预设" -label "导入";
+			button -c "AssetExport" -w 60 -h 20 -ann "导出预设" -label "导出";
+	rowLayout -nc 6 -columnWidth6 30 70 30 70 15 15 -adj 2  -p CeresProjectLocatecolumnLayout;
+		text -al left -w 30 "路径：";
+		textField -w 70 -h 20 -tx "" -ann "导出导入路径输入框，可带文件名输入，保持文件名输入框为空即可" AssetExportImportPathtextField;
+		text -al left -w 30 "名称：";
+		textField -w 70 -h 20 -tx "" -ann "导出导入路径输入框，可带文件名输入，保持文件名输入框为空即可" AssetExportImportFiletextField;
+		button -c "ReAssetExportImporttextField" -w 15 -h 20 -ann "恢复预设路径" -label "R";
+		button -c "OpenAssetExportImporttextField" -w 15 -h 20 -ann "打开输入路径" -label "O";
+	frameLayout -cl 1 -cll 1 -label "编辑" -p CeresProjectLocatecolumnLayout CeresProjectLocateframeLayout;
+	rowLayout -nc 4 -columnWidth4 60 60 64 60 -adj 4 -p CeresProjectLocateframeLayout;
+		button -c "AssettextScrollListDeleteAll" -w 59 -h 20 -ann "删除全部" -label "删除全部";
+		button -c "AssettextScrollListClean" -w 59 -h 20 -ann "取消选择" -label "取消选择";
+		checkBox -v off -label "选定位置" -w 64 -ann "在选定位置后添加" Selectedlocation;
+		button -c "AssettextScrollListEdit" -w 59 -h 20 -ann "增加资产内容" -label "增加资产";
+	rowLayout -nc 4 -columnWidth4 30 95 30 95 -adj 4 -p CeresProjectLocateframeLayout;
+		text -al left -w 30 "代号：";
+		textField -w 93 -h 20 -tx "" -ann "增加资产代号输入框" AssetCodetextScrollListtextField;
+		text -al left -w 30 "备注：";
+		textField -w 93 -h 20 -tx "" -ann "增加资产备注输入框" AssetNotetextScrollListtextField;
+	rowLayout -nc 4 -columnWidth4 30 120 50 50 -adj 2 -p CeresProjectLocateframeLayout;
+		text -al left -w 30 "路径：";
+		textField -w 220 -h 20 -tx "" -ann "增加资产路径输入框" AssetPathtextScrollListtextField;
+		button -c "AssettextScrollListEditUp" -w 45 -h 20 -ann "将资产信息上移编辑" -label "上移";
+		button -c "AssettextScrollListEditDown" -w 45 -h 20 -ann "将资产信息下移编辑" -label "下移";
+	button -p CeresProjectLocatecolumnLayout -c "SendToQOP" -w 20 -h 17 -bgc 0.2 0.4 0.2 -ann "发送到项目文件快速打开插件" -label "发送到项目文件快速打开插件";
+	button -p CeresProjectLocatecolumnLayout -c "SendToWTAFFM" -w 20 -h 17 -bgc 0.4 0.2 0.4 -ann "发送到自动WT头模工作流程插件" -label "发送到自动WT头模工作流程插件";
+	textField -e -tx `optionVar -q LocPrePath` AssetExportImportPathtextField;
+	AutoLastProject ();
+}
+
+//将资产信息上移编辑
+global proc AssettextScrollListEditUp ()
+{
+	//获取选择对象序列
+	int $AssetCodeselectIndexed[] = `textScrollList -q -selectIndexedItem AssetCodetextScrollList`;
+
+	//获取选择对象内容
+	string $AssetCodetextTextTMP_SL[] = `textScrollList -q -si AssetCodetextScrollList`;
+	string $AssetNotetextTextTMP_SL[] = `textScrollList -q -si AssetNotetextScrollList`;
+	string $AssetPathtextTextTMP_SL[] = `textScrollList -q -si AssetPathtextScrollList`;
+
+	if ($AssetCodeselectIndexed[0] == 1)
+	{
+		warning ("已经是置顶资产！！！");
+	}
+	else
+	{
+		//删除选择内容
+		AssettextScrollListDelete ();
+
+		//选择上方对象
+		textScrollList -e -selectIndexedItem ($AssetCodeselectIndexed[0]-1) AssetCodetextScrollList;
+		textScrollList -e -selectIndexedItem ($AssetCodeselectIndexed[0]-1) AssetNotetextScrollList;
+		textScrollList -e -selectIndexedItem ($AssetCodeselectIndexed[0]-1) AssetPathtextScrollList;
+
+		textScrollList -e -appendPosition ($AssetCodeselectIndexed[0]-1) $AssetCodetextTextTMP_SL[0] AssetCodetextScrollList;
+		textScrollList -e -appendPosition ($AssetCodeselectIndexed[0]-1) $AssetNotetextTextTMP_SL[0] AssetNotetextScrollList;
+		textScrollList -e -appendPosition ($AssetCodeselectIndexed[0]-1) $AssetPathtextTextTMP_SL[0] AssetPathtextScrollList;
+
+		//恢复选择之前对象
+		textScrollList -e -selectIndexedItem ($AssetCodeselectIndexed[0]-1) AssetCodetextScrollList;
+		textScrollList -e -selectIndexedItem ($AssetCodeselectIndexed[0]-1) AssetNotetextScrollList;
+		textScrollList -e -selectIndexedItem ($AssetCodeselectIndexed[0]-1) AssetPathtextScrollList;
+	}
+}
+
+//将资产信息下移编辑
+global proc AssettextScrollListEditDown ()
+{
+	//获取选择对象序列
+	int $AssetCodeselectIndexed[] = `textScrollList -q -selectIndexedItem AssetCodetextScrollList`;
+	int $AssetCodenumberOfItems = `textScrollList -q -numberOfItems AssetCodetextScrollList`;
+
+	//获取选择对象内容
+	string $AssetCodetextTextTMP_SL[] = `textScrollList -q -si AssetCodetextScrollList`;
+	string $AssetNotetextTextTMP_SL[] = `textScrollList -q -si AssetNotetextScrollList`;
+	string $AssetPathtextTextTMP_SL[] = `textScrollList -q -si AssetPathtextScrollList`;
+
+	if ($AssetCodeselectIndexed[0] == $AssetCodenumberOfItems)
+	{
+		warning ("已经是末尾资产！！！");
+	}
+	else
+	{
+		//删除选择内容
+		AssettextScrollListDelete ();
+
+		textScrollList -e -appendPosition ($AssetCodeselectIndexed[0]+1) $AssetCodetextTextTMP_SL[0] AssetCodetextScrollList;
+		textScrollList -e -appendPosition ($AssetCodeselectIndexed[0]+1) $AssetNotetextTextTMP_SL[0] AssetNotetextScrollList;
+		textScrollList -e -appendPosition ($AssetCodeselectIndexed[0]+1) $AssetPathtextTextTMP_SL[0] AssetPathtextScrollList;
+
+		//恢复选择之前对象
+		textScrollList -e -selectIndexedItem ($AssetCodeselectIndexed[0]+1) AssetCodetextScrollList;
+		textScrollList -e -selectIndexedItem ($AssetCodeselectIndexed[0]+1) AssetNotetextScrollList;
+		textScrollList -e -selectIndexedItem ($AssetCodeselectIndexed[0]+1) AssetPathtextScrollList;
+	}
+}
+
+//自动加载最后一次加载项目
+global proc AutoLastProject ()
+{
+	string $scriptsPath = `internalVar -userScriptDir`;
+	string $LastProjectFile = $scriptsPath + "ZSToolsBox/PublicFiles/CeresProjectLocateLastFile.txt";
+	if (`file -exists -q ($scriptsPath + "ZSToolsBox/PublicFiles/CeresProjectLocateLastFile.txt")`)
+	{
+		eval("source \"" + $LastProjectFile + "\"");
+		string $Project = `textField -q -tx CeresProjectTextField`;
+		string $LastFile = $scriptsPath + "ZSToolsBox/PublicFiles/CeresProjectLocateLastFile" + $Project + ".txt";
+		if (`file -exists -q $LastFile`)
+		{
+			eval("source \"" + $LastFile + "\"");
+		}
+	}
+}
+
+//保存最后一次加载项目信息
+global proc AutoSaveLastProject ()
+{
+	string $Project = `textField -q -tx CeresProjectTextField`;
+	string $ProjectPath = `optionVar -q CeresNowProject`;
+	string $scriptsPath = `internalVar -userScriptDir`;
+	string $LastProjectFile = $scriptsPath + "ZSToolsBox/PublicFiles/CeresProjectLocateLastFile.txt";
+	$fileId=`fopen ($LastProjectFile) "w"`;
+	fprint $fileId ( "textField -e -tx \"" + $Project + "\" CeresProjectTextField;\noptionVar -sv CeresNowProject \"" + $ProjectPath + "\";" );
+	fclose $fileId;
+}
+
+//自动加载当前项目最后一次加载文件
+global proc AutoLastFile ()
+{
+	string $Project = `textField -q -tx CeresProjectTextField`;
+	string $scriptsPath = `internalVar -userScriptDir`;
+	string $LastFile = $scriptsPath + "ZSToolsBox/PublicFiles/CeresProjectLocateLastFile" + $Project + ".txt";
+	if (`file -exists -q $LastFile`)
+	{
+		eval("source \"" + $LastFile + "\"");
+	}else
+	{
+		AssettextScrollListDeleteAll;
+	}
+	textField -e -tx (`optionVar -q LocPrePath` + "/" + $Project) AssetExportImportPathtextField;
+}
+
+//发送到自动WT头模工作流程插件
+global proc SendToWTAFFM ()
+{
+	string $ProjectTextField = `textField -q -tx CeresProjectTextField`;
+	string $AssetPathselectstring[] = `textScrollList -q -selectItem AssetPathtextScrollList`;
+	string $AssetCodeselectstring[] = `textScrollList -q -selectItem AssetCodetextScrollList`;
+	string $SendAssetCodeselectstring[] = stringToStringArray($AssetCodeselectstring[0], "—");
+	if ($ProjectTextField != "WT"){
+		warning("非WT项目！！！");
+	}else{
+		textField -e -tx $AssetPathselectstring[0] CeresRigtextField;
+		textField -e -tx $SendAssetCodeselectstring[0] characternum;
+		textField -e -tx $SendAssetCodeselectstring[1] charactername;
+	}
+	flush ();
+}
+
+//公盘文件上传警告
+global proc PreSendwarn ()
+{
+	if (`window -exists PreSendwindow`)
+	deleteUI -window PreSendwindow;
+	window -title "上传警告！" -h 10 -w 100  -rtf 1  -s 0 -tlb 1 PreSendwindow;
+	columnLayout -adjustableColumn true;
+	text "上传者";
+	textField -w 100 -h 20 -tx "" -ann "上传者输入框" PreSendID;
+	button -c "PreSendSurebutton" -label "确认上传";
+	button -c "PreSendCancelbutton" -label "取消上传";
+	showWindow;
+}
+
+//取消上传
+global proc PreSendCancelbutton ()
+{
+	deleteUI -window PreSendwindow;
+}
+
+//确认覆盖
+global proc PreSendSurebutton ()
+{
+	string $Project = `optionVar -q CeresNowProject`;
+	string $ProjectTextField = `textField -q -tx CeresProjectTextField`;
+	string $AssetExportImportPath = `textField -q -tx AssetExportImportPathtextField`;
+	string $AssetExportImportFile = `textField -q -tx AssetExportImportFiletextField`;
+	string $mayaAssetExportImportPath = fromNativePath( $AssetExportImportPath );
+	string $AssetCodeArray[] = `textScrollList -q -allItems AssetCodetextScrollList`;
+	string $AssetNoteArray[] = `textScrollList -q -allItems AssetNotetextScrollList`;
+	string $AssetPathArray[] = `textScrollList -q -allItems AssetPathtextScrollList`;
+	string $AssetExportImportAll;
+	int $numberOftextScrollList = `textScrollList -q -numberOfItems AssetCodetextScrollList`;
+	string $OldVersionOldPath;
+	string $OldVersionPath;
+	string $DirOldVersionPath;
+	string $PreSendIDtextField = `textField -q -tx PreSendID`;
+	string $OldVersionName = `date -format "YYYY年MM月DD日hh时mm分ss秒"` + "-" + $PreSendIDtextField + ".pre";
+	if ($ProjectTextField == "MO"){
+		$OldVersionOldPath = "//192.168.20.102/projects/CIDA_RG/020 绑定公共数据/Ceres版本管理软件项目路径预设/MO/MOPublicPresets.pre";
+		$OldVersionPath = "//192.168.20.102/projects/CIDA_RG/020 绑定公共数据/Ceres版本管理软件项目路径预设/MOPublicPresets OldVersion/MOPublicPresets.pre";
+		$DirOldVersionPath = "//192.168.20.102/projects/CIDA_RG/020 绑定公共数据/Ceres版本管理软件项目路径预设/MOPublicPresets OldVersion";
+	}
+	if ($ProjectTextField == "WT"){
+		$OldVersionOldPath = "//192.168.20.102/projects/CIDA_RG/020 绑定公共数据/Ceres版本管理软件项目路径预设/WT/WTPublicPresets.pre";
+		$OldVersionPath = "//192.168.20.102/projects/CIDA_RG/020 绑定公共数据/Ceres版本管理软件项目路径预设/WTPublicPresets OldVersion/WTPublicPresets.pre";
+		$DirOldVersionPath = "//192.168.20.102/projects/CIDA_RG/020 绑定公共数据/Ceres版本管理软件项目路径预设/WTPublicPresets OldVersion";
+
+	}
+	$OldVersionOldPath = toNativePath($OldVersionOldPath);
+	$OldVersionPath = toNativePath($OldVersionPath);
+	system("copy \"" + $OldVersionOldPath + "\" \"" + $DirOldVersionPath + "\"");
+	system("Rename \"" + $OldVersionPath + "\" \"" + $OldVersionName + "\"");
+	if(`gmatch $AssetExportImportPath ("*.pre")`)
+	{
+		$AssetExportImportAll = $mayaAssetExportImportPath;
+	}else
+	{
+		$AssetExportImportAll = $mayaAssetExportImportPath + "/" + $AssetExportImportFile + ".pre";
+	}
+	cleanFile ( $AssetExportImportAll );
+	AssetExportCommend ( $AssetExportImportAll , $numberOftextScrollList , "$AssetCodeArray[]" , $AssetCodeArray );
+	AssetExportCommend ( $AssetExportImportAll , $numberOftextScrollList , "$AssetNoteArray[]" , $AssetNoteArray );
+	AssetExportCommend ( $AssetExportImportAll , $numberOftextScrollList , "$AssetPathArray[]" , $AssetPathArray );
+	string $commendtextcontent = "AssetImportCommend ( $AssetCodeArray , $AssetNoteArray , $AssetPathArray );\n";
+	writeFile ( $AssetExportImportAll , $commendtextcontent );
+	string $projecttextcontent = "optionVar -sv CeresNowProject \"" + $Project + "\";\n" + "textField -e -tx \"" + $ProjectTextField + "\" CeresProjectTextField;\n";
+	writeFile ( $AssetExportImportAll , $projecttextcontent );
+	deleteUI -window PreSendwindow;
+}
+
+//MO更新至公盘
+global proc MOSend ()
+{
+	string $ProjectTextField = `textField -q -tx CeresProjectTextField`;
+	if ($ProjectTextField == "MO"){
+		PreSendwarn ();
+	}else{
+		warning("上传项目错误！！！");
+	}
+	string $PublicPrePath = "//192.168.20.102/projects/CIDA_RG/020 绑定公共数据/Ceres版本管理软件项目路径预设/MO";
+	textField -e -tx $PublicPrePath AssetExportImportPathtextField;
+	textField -e -tx "MOPublicPresets" AssetExportImportFiletextField;
+}
+
+//WT更新至公盘
+global proc WTSend ()
+{
+	string $ProjectTextField = `textField -q -tx CeresProjectTextField`;
+	if ($ProjectTextField == "WT"){
+		PreSendwarn ();
+	}else{
+		warning("上传项目错误！！！");
+	}
+	string $PublicPrePath = "//192.168.20.102/projects/CIDA_RG/020 绑定公共数据/Ceres版本管理软件项目路径预设/WT";
+	textField -e -tx $PublicPrePath AssetExportImportPathtextField;
+	textField -e -tx "WTPublicPresets" AssetExportImportFiletextField;
+}
+
+//打开输入目录
+global proc OpenAssetExportImporttextField ()
+{
+	string $AssetExportImportPath = `textField -q -tx AssetExportImportPathtextField`;
+	if(`gmatch $AssetExportImportPath ("*.pre")`)
+	{
+		$AssetExportImportPath = dirname($AssetExportImportPath);
+	}
+	$AssetExportImportPath = toNativePath($AssetExportImportPath);
+	system("explorer \"" + $AssetExportImportPath + "\"");
+}
+
+//恢复本地预设文件目录
+global proc ReAssetExportImporttextField ()
+{
+	string $PrePath = `optionVar -q LocPrePath` + "/" + `textField -q -tx CeresProjectTextField`;
+	textField -e -tx $PrePath AssetExportImportPathtextField;
+	textField -e -tx "" AssetExportImportFiletextField;
+}
+
+//发送到项目文件快速打开插件
+global proc SendToQOP ()
+{
+	string $Project = `optionVar -q CeresNowProject`;
+	string $ProjectTextField = `textField -q -tx CeresProjectTextField`;
+	string $AssetPathselectstring[] = `textScrollList -q -selectItem AssetPathtextScrollList`;
+	textField -e -tx $AssetPathselectstring[0] quickopenFilePath;
+	textField -e -tx $ProjectTextField ProjectTextField;
+	optionVar -sv NowProject $Project;
+}
+
+global proc CeresProjectLocatechangetowindowsfilepath () 
+{
+	string $Project = `optionVar -q CeresNowProject`;
+	string $AssetPathselectstring[] = `textScrollList -q -selectItem AssetPathtextScrollList`;
+	string $FileTotalCeresProjectLocateFilePath;
+	string $FolderTotalCeresProjectLocateFilePath;
+	string $TotalCeresProjectLocateFilePath;
+	if (!`gmatch $AssetPathselectstring[0] ("*:*")` && !`gmatch $AssetPathselectstring[0] "\\\\*"` && !`gmatch $AssetPathselectstring[0] "//*"`)
+	{
+		$TotalCeresProjectLocateFilePath = $Project + $AssetPathselectstring[0];
+	}else
+	{
+		$TotalCeresProjectLocateFilePath = $AssetPathselectstring[0];
+	}
+	if (`gmatch $TotalCeresProjectLocateFilePath ("*.*")`)
+	{
+		//string $mayaTotalCeresProjectLocateFilePath = fromNativePath( $TotalCeresProjectLocateFilePath );
+		//string $arrayTotalCeresProjectLocateFilePath[] = stringToStringArray( $mayaTotalCeresProjectLocateFilePath, "/" );
+		//string $newarrayTotalCeresProjectLocateFilePath[];
+		//for ($i = 0; $i < size($arrayTotalCeresProjectLocateFilePath)-1; $i++)
+		//{
+		//	$newarrayTotalCeresProjectLocateFilePath[$i] = $arrayTotalCeresProjectLocateFilePath[$i];
+		//}
+		//$TotalCeresProjectLocateFilePath = stringArrayToString($newarrayTotalCeresProjectLocateFilePath, "/");
+		$TotalCeresProjectLocateFilePath = dirname( $TotalCeresProjectLocateFilePath );
+		$TotalCeresProjectLocateFilePath = toNativePath( $TotalCeresProjectLocateFilePath );
+	}else
+	{
+		$TotalCeresProjectLocateFilePath = toNativePath( $TotalCeresProjectLocateFilePath );
+	}
+
+	int $existsCeresProjectLocateFilePath = `file -exists -q $TotalCeresProjectLocateFilePath`;
+	if (!$existsCeresProjectLocateFilePath)
+	{
+		warning("当前文件不存在。\n");
+	}else
+	{
+		system("explorer \"" + $TotalCeresProjectLocateFilePath + "\"");
+	    print("打开预设文件路径。\n");
+	}
+}
+
+global proc CeresProjectLocatechangetoCeres ()
+{
+	string $Project = `textField -q -tx CeresProjectTextField`;
+	string $scriptsPath = `internalVar -userScriptDir`;
+	string $windowsscriptsPath = toNativePath( $scriptsPath );
+	string $quickopenprojectfiletemp = $windowsscriptsPath + "ZSToolsBox/PublicFiles/Caches/ClipboardContent.tmp";
+	string $AssetPathselectstring[] = `textScrollList -q -selectItem AssetPathtextScrollList`;
+	$fileId=`fopen $quickopenprojectfiletemp "w"`;
+	fprint $fileId ( $AssetPathselectstring[0] );
+	fclose $fileId;
+	system("start \"" + $windowsscriptsPath + "ZSToolsBox/PublicFiles/Executables/PathCopy.exe\"");
+	ckAutoCeresFunc($Project);
+}
+
+//显示公盘预设列表
+global proc PublicPre ()
+{
+	string $getPublicPreFilesInCurrentDirectory[] = getPublicPreFilesInCurrentDirectory();
+	int $PathHeightGet = `textScrollList -q -h PublicPretextScrollList`;
+	if ($PathHeightGet == 2)
+	{
+		button -e -label "公▲" PublicPrebutton;
+		textScrollList -e -h 70 -m 1 PublicPretextScrollList;
+		PublicPreGet ();
+	}else{
+		button -e -label "公◆" PublicPrebutton;
+		textScrollList -e -h 2 -m 1 PublicPretextScrollList;
+	}
+}
+
+//显示预设列表
+global proc LocPre ()
+{
+	string $getPreFilesInCurrentDirectory[] = getPreFilesInCurrentDirectory();
+	int $PathHeightGet = `textScrollList -q -h LocPretextScrollList`;
+	if ($PathHeightGet == 2)
+	{
+		button -e -label "私▲" LocPrebutton;
+		textScrollList -e -h 70 -m 1 LocPretextScrollList;
+		LocPreGet ();
+	}else{
+		button -e -label "私◆" LocPrebutton;
+		textScrollList -e -h 2 -m 1 LocPretextScrollList;
+	}
+}
+
+//刷新公盘预设列表
+global proc PublicPreGet ()
+{
+	string $getPublicPreFilesInCurrentDirectory[] = getPublicPreFilesInCurrentDirectory();
+	int $PathHeightGet = `textScrollList -q -h PublicPretextScrollList`;
+	textScrollList -e -removeAll PublicPretextScrollList;
+	for ( $i = 0 ; $i < size($getPublicPreFilesInCurrentDirectory); $i++)
+	{
+		textScrollList -e -append $getPublicPreFilesInCurrentDirectory[$i] PublicPretextScrollList;
+	}
+
+}
+
+//刷新预设列表
+global proc LocPreGet ()
+{
+	string $getPreFilesInCurrentDirectory[] = getPreFilesInCurrentDirectory();
+	int $PathHeightGet = `textScrollList -q -h LocPretextScrollList`;
+	textScrollList -e -removeAll LocPretextScrollList;
+	for ( $i = 0 ; $i < size($getPreFilesInCurrentDirectory); $i++)
+	{
+		textScrollList -e -append $getPreFilesInCurrentDirectory[$i] LocPretextScrollList;
+	}
+
+}
+
+//获取公盘预设目录的预设文件列表
+global proc string[] getPublicPreFilesInCurrentDirectory()
+{
+	string $Project = `textField -q -tx CeresProjectTextField`;
+	string $PublicPath = "//192.168.20.102/projects/CIDA_RG/020 绑定公共数据/Ceres版本管理软件项目路径预设/" + $Project + "/";
+	
+	string $fileList[] = `getFileList -folder $PublicPath -filespec "*.pre"`; // 获取匹配的文件列表
+
+	// 提取文件名并存储到 LocPreFileName 数组中
+	string $fileName;
+	string $PublicPreFileName[];
+	for ($i = 0; $i < size($fileList); $i++)
+	{
+		string $NewfileList[] = stringToStringArray($fileList[$i], ".");
+		$fileList[$i] = $NewfileList[0];
+		$fileName = $fileList[$i]; // 提取文件名
+		$PublicPreFileName[$i] = $fileName;
+	}
+	
+	return $PublicPreFileName;
+}
+
+//获取本地预设目录的预设文件列表
+global proc string[] getPreFilesInCurrentDirectory()
+{
+	string $Project = `textField -q -tx CeresProjectTextField`;
+	string $directoryPath = (`optionVar -q LocPrePath`) + "/" + $Project + "/";
+	
+	string $fileList[] = `getFileList -folder $directoryPath -filespec "*.pre"`; // 获取匹配的文件列表
+
+	// 提取文件名并存储到 LocPreFileName 数组中
+	string $fileName;
+	string $LocPreFileName[];
+	for ($i = 0; $i < size($fileList); $i++)
+	{
+		string $NewfileList[] = stringToStringArray($fileList[$i], ".");
+		$fileList[$i] = $NewfileList[0];
+		$fileName = $fileList[$i]; // 提取文件名
+		$LocPreFileName[$i] = $fileName;
+	}
+	
+	return $LocPreFileName;
+}
+
+//显示预设路径
+global proc ShowPrePath ()
+{
+	//$ShowPrePathKey = `checkBox -q -v ShowPrePath`;
+	int $PathHeightGet = `textScrollList -q -h AssetPathtextScrollList`;
+	if ($PathHeightGet == 2)
+	{
+		button -e -label "▲" ShowPrePathbutton;
+		textScrollList -e -h 135 -m 1 AssetPathtextScrollList;
+	}else{
+		button -e -label "◆" ShowPrePathbutton;
+		textScrollList -e -h 2 -m 1 AssetPathtextScrollList;
+	}
+}
+
+//MO公用预设
+global proc AssetMOPre ()
+{
+	string $scriptsPath = `internalVar -userScriptDir`;
+	eval("source \"//192.168.20.102/projects/CIDA_RG/020 绑定公共数据/Ceres版本管理软件项目路径预设/MO/MOPublicPresets.pre\"");
+	print("MO公用预设文件已导入。\n");
+	string $Project = `textField -q -tx CeresProjectTextField`;
+	$fileId=`fopen ($scriptsPath + "ZSToolsBox/PublicFiles/CeresProjectLocateLastFile" + $Project + ".txt") "w"`;
+	fprint $fileId ( "eval(\"source \\\"//192.168.20.102/projects/CIDA_RG/020 绑定公共数据/Ceres版本管理软件项目路径预设/MO/MOPublicPresets.pre\\\"\");" );
+	fclose $fileId;
+	AutoSaveLastProject;
+	LocPreGet;
+	PublicPreGet;
+}
+
+//WT公用预设
+global proc AssetWTPre ()
+{
+	string $scriptsPath = `internalVar -userScriptDir`;
+	eval("source \"//192.168.20.102/projects/CIDA_RG/020 绑定公共数据/Ceres版本管理软件项目路径预设/WT/WTPublicPresets.pre\"");
+	print("WT公用预设文件已导入。\n");
+	string $Project = `textField -q -tx CeresProjectTextField`;
+	$fileId=`fopen ($scriptsPath + "ZSToolsBox/PublicFiles/CeresProjectLocateLastFile" + $Project + ".txt") "w"`;
+	fprint $fileId ( "eval(\"source \\\"//192.168.20.102/projects/CIDA_RG/020 绑定公共数据/Ceres版本管理软件项目路径预设/WT/WTPublicPresets.pre\\\"\");" );
+	fclose $fileId;
+	AutoSaveLastProject;
+	LocPreGet;
+	PublicPreGet;
+}
+
+//导入预设时刷新资产信息命令
+global proc AssetImportCommend ( string $AssetCodeArray[] , string $AssetNoteArray[] , string $AssetPathArray[] )
+{
+	textScrollList -e -removeAll AssetCodetextScrollList;
+	textScrollList -e -removeAll AssetNotetextScrollList;
+	textScrollList -e -removeAll AssetPathtextScrollList;
+	for ( $i = 0 ; $i < size($AssetCodeArray); $i++)
+	{
+		textScrollList -e -append $AssetCodeArray[$i] AssetCodetextScrollList;
+		textScrollList -e -append $AssetNoteArray[$i] AssetNotetextScrollList;
+		textScrollList -e -append $AssetPathArray[$i] AssetPathtextScrollList;
+	}
+}
+
+//导入公盘预设
+global proc PublicPreLoad ()
+{
+	string $scriptsPath = `internalVar -userScriptDir`;
+	string $Project = `textField -q -tx CeresProjectTextField`;
+	string $PublicPath = "//192.168.20.102/projects/CIDA_RG/020 绑定公共数据/Ceres版本管理软件项目路径预设/" + $Project + "/";
+	string $SelectPre[] = `textScrollList -q -selectItem PublicPretextScrollList`;
+	string $PublicPrePathAll = $PublicPath + $SelectPre[0] + ".pre";
+	textField -e -tx $PublicPath AssetExportImportPathtextField;
+	textField -e -tx $SelectPre[0] AssetExportImportFiletextField;
+	eval("source \"" + $PublicPrePathAll + "\"");
+	textScrollList -e -da LocPretextScrollList;
+	print($SelectPre[0] + "预设文件已导入。\n");
+	$fileId=`fopen ($scriptsPath + "ZSToolsBox/PublicFiles/CeresProjectLocateLastFile" + $Project + ".txt") "w"`;
+	fprint $fileId ( "eval(\"source \\\"" + $PublicPrePathAll + "\\\"\");" );
+	fclose $fileId;
+	AutoSaveLastProject;
+}
+
+//导入本地预设
+global proc LocPreLoad ()
+{
+	string $scriptsPath = `internalVar -userScriptDir`;
+	string $Project = `textField -q -tx CeresProjectTextField`;
+	string $directoryPath = (`optionVar -q LocPrePath`) + "/" + $Project + "/";
+	string $SelectPre[] = `textScrollList -q -selectItem LocPretextScrollList`;
+	string $LocPrePathAll = $directoryPath + $SelectPre[0] + ".pre";
+	textField -e -tx $directoryPath AssetExportImportPathtextField;
+	textField -e -tx $SelectPre[0] AssetExportImportFiletextField;
+	eval("source \"" + $LocPrePathAll + "\"");
+	textScrollList -e -da PublicPretextScrollList;
+	print($SelectPre[0] + "预设文件已导入。\n");
+	$fileId=`fopen ($scriptsPath + "ZSToolsBox/PublicFiles/CeresProjectLocateLastFile" + $Project + ".txt") "w"`;
+	fprint $fileId ( "eval(\"source \\\"" + $LocPrePathAll + "\\\"\");" );
+	fclose $fileId;
+	AutoSaveLastProject;
+}
+
+//本地预设删除选择
+global proc LocPreDelete ()
+{
+	string $directoryPath = `optionVar -q LocPrePath`;
+	int $SelectPreIndex[] = `textScrollList -q -selectIndexedItem LocPretextScrollList`;
+	string $SelectPre[] = `textScrollList -q -selectItem LocPretextScrollList`;
+	string $LocPrePathAll = $directoryPath + "/" + $SelectPre[0] + ".pre";
+	$LocPrePathAll = toNativePath($LocPrePathAll);
+	textScrollList -e -removeIndexedItem $SelectPreIndex[0] LocPretextScrollList;
+	system("del \"" + $LocPrePathAll + "\"");
+}
+
+//本地预设重命名
+global proc LocPreRename ()
+{
+	if (`window -exists LocPreRename`)
+	deleteUI -window LocPreRename;
+	string $window = `window -title "重命名" -h 10 -w 100  -rtf 1  -s 0 -tlb 1 LocPreRename`;
+	string $LocPreRenamew = `columnLayout -adjustableColumn true `;
+	textField -w 100 -h 20 -tx `textScrollList -q -selectItem LocPretextScrollList` -ann "重命名输入框" LocPreRenametextField;
+	button -parent $LocPreRenamew -c "LocPreRenamebutton" -label "重命名";
+	showWindow $window;
+}
+
+global proc LocPreRenamebutton ()
+{
+	string $directoryPath = `optionVar -q LocPrePath`;
+	string $SelectPre[] = `textScrollList -q -selectItem LocPretextScrollList`;
+	string $AllPre[] = `textScrollList -q -allItems LocPretextScrollList`;
+	int $NumLocPretextScrollList = `textScrollList -q -numberOfItems LocPretextScrollList`;
+	int $SelectPreIndex[] = `textScrollList -q -selectIndexedItem LocPretextScrollList`;
+	int $LocPreRenamebuttonKey = 0;
+	string $NewSelectPre = `textField -q -tx LocPreRenametextField`;
+	string $LocPrePathAll = $directoryPath + "/" + $SelectPre[0] + ".pre";
+	$LocPrePathAll = toNativePath($LocPrePathAll);
+	for ( $i = 0 ; $i <$NumLocPretextScrollList ; $i++)
+	{
+		if ($NewSelectPre == $AllPre[$i])
+		{
+			$LocPreRenamebuttonKey = $LocPreRenamebuttonKey + 1;
+		}
+	}
+	if ($LocPreRenamebuttonKey < 1 && $NewSelectPre != "")
+	{
+		system("rename \"" + $LocPrePathAll + "\" \"" + $NewSelectPre + ".pre\"");
+		textScrollList -e -removeIndexedItem $SelectPreIndex[0] LocPretextScrollList;
+		textScrollList -e -appendPosition $SelectPreIndex[0] $NewSelectPre LocPretextScrollList;
+		textScrollList -e -selectIndexedItem $SelectPreIndex[0] LocPretextScrollList;
+		deleteUI -window LocPreRename;
+	}else
+	{
+		if ($NewSelectPre == "")
+		{
+			warning("重命名为空，重命名失败！！！");
+			//deleteUI -window LocPreRename;
+		}else{
+			warning("存在相同名称文件或名称未改变！！！");
+			//deleteUI -window LocPreRename;
+		}
+	}
+}
+
+//导入预设
+global proc AssetImport ()
+{
+	string $AssetExportImportPath = `textField -q -tx AssetExportImportPathtextField`;
+	string $AssetExportImportFile = `textField -q -tx AssetExportImportFiletextField`;
+	$AssetExportImportPath = strip($AssetExportImportPath);
+	$AssetExportImportFile = strip($AssetExportImportFile);
+	string $AssetExportImportAll;
+	if ($AssetExportImportPath == "")
+	{
+		warning ("请输入路径！！！");
+	}else
+	{
+		if(`gmatch $AssetExportImportPath ("*.pre")`)
+		{
+			$AssetExportImportAll = $AssetExportImportPath;
+		}else
+		{
+			$AssetExportImportAll = $AssetExportImportPath + "/" + $AssetExportImportFile + ".pre";
+		}
+		string $mayaAssetExportImportAll = fromNativePath( $AssetExportImportAll );
+		int $AssetPreexists = `file -exists -q $AssetExportImportAll`;
+		if (!$AssetPreexists)
+		{
+			warning("当前预设文件不存在。\n");
+		}else
+		{
+			eval("source \"" + $mayaAssetExportImportAll + "\"");
+			print("预设文件已导入。\n");
+		}
+	}
+}
+
+//导出预设
+global proc AssetExport ()
+{
+	string $Project = `optionVar -q CeresNowProject`;
+	string $ProjectTextField = `textField -q -tx CeresProjectTextField`;
+	string $AssetExportImportPath = `textField -q -tx AssetExportImportPathtextField`;
+	string $AssetExportImportFile = `textField -q -tx AssetExportImportFiletextField`;
+	$AssetExportImportPath = strip($AssetExportImportPath);
+	$AssetExportImportFile = strip($AssetExportImportFile);
+	string $mayaAssetExportImportPath = fromNativePath( $AssetExportImportPath );
+	string $windowsAssetExportImportPath = toNativePath( $AssetExportImportPath );
+	string $AssetCodeArray[] = `textScrollList -q -allItems AssetCodetextScrollList`;
+	string $AssetNoteArray[] = `textScrollList -q -allItems AssetNotetextScrollList`;
+	string $AssetPathArray[] = `textScrollList -q -allItems AssetPathtextScrollList`;
+	string $AssetExportImportAll;
+	string $getPreFilesInCurrentDirectory[] = getPreFilesInCurrentDirectory();
+	int $numberOftextScrollList = `textScrollList -q -numberOfItems AssetCodetextScrollList`;
+	if (!`gmatch $mayaAssetExportImportPath ("//192.168.20.102/projects/CIDA_RG/020 绑定公共数据/Ceres版本管理软件项目路径预设*")`)
+	{	
+		if ($AssetExportImportPath == "")
+		{
+			warning ("请输入路径！！！");
+		}else
+		{
+			if(`gmatch $AssetExportImportPath ("*.pre")`)
+			{
+				$AssetExportImportAll = $mayaAssetExportImportPath;
+			}else
+			{
+				$AssetExportImportAll = $mayaAssetExportImportPath + "/" + $AssetExportImportFile + ".pre";
+			}
+			//检测输入路径是否存在，不存在则创建
+			string $AssetPreexistsPath = dirname($AssetExportImportAll);
+			string $windowsAssetPreexistsPath = toNativePath($AssetPreexistsPath);
+			int $AssetPreexists = `file -exists -q $AssetPreexistsPath`;
+			if ($AssetPreexists == 0){
+				system("mkdir \"" + $windowsAssetPreexistsPath + "\"");
+			}
+			//检测导出文件是否存在，存在则弹出警告窗口
+			int $AssetPreFileexists = `file -exists -q $AssetExportImportAll`;
+			if ($AssetPreFileexists == 1){
+				AssetPrewarn ();
+			}else if ($AssetExportImportFile != "" || `gmatch $AssetExportImportPath ("*.pre")`)
+			{
+				AssetExportCommend ( $AssetExportImportAll , $numberOftextScrollList , "$AssetCodeArray[]" , $AssetCodeArray );
+				AssetExportCommend ( $AssetExportImportAll , $numberOftextScrollList , "$AssetNoteArray[]" , $AssetNoteArray );
+				AssetExportCommend ( $AssetExportImportAll , $numberOftextScrollList , "$AssetPathArray[]" , $AssetPathArray );
+				string $commendtextcontent = "AssetImportCommend ( $AssetCodeArray , $AssetNoteArray , $AssetPathArray );\n";
+				writeFile ( $AssetExportImportAll , $commendtextcontent );
+				string $projecttextcontent = "optionVar -sv CeresNowProject \"" + $Project + "\";\n" + "textField -e -tx \"" + $ProjectTextField + "\" CeresProjectTextField;\n";
+				writeFile ( $AssetExportImportAll , $projecttextcontent );
+			LocPreGet ();
+			PublicPreGet ();
+			}else
+			{
+				error("预设文件名不能为空！！！");
+			}
+		}
+	}else{
+		warning ("此为公盘路径，禁止修改！！！");
+	}
+}
+
+//导出预设命令
+global proc AssetExportCommend ( string $Path , int $Num , string $Name , string $textcontentArray[] )
+{
+	//资产代号
+	string $textcontent1 = "string " + $Name + " = {";
+	writeFile ( $Path , $textcontent1 );
+	for ( $i = 0 ; $i < $Num-1 ; $i++)
+	{
+		string $textcontent2 = "\"" + $textcontentArray[$i] + "\",";
+		writeFile ( $Path , $textcontent2 );
+	}
+	string $textcontent2 = "\"" + $textcontentArray[$Num-1] + "\"};\n";
+	writeFile ( $Path , $textcontent2 );
+}
+
+//文件导出覆盖警告
+global proc AssetPrewarn ()
+{
+	if (`window -exists AssetPrewarn`)
+	deleteUI -window AssetPrewarn;
+	window -title "警告！" -h 10 -w 100  -rtf 1  -s 0 -tlb 1 AssetPrewarn;
+	columnLayout -adjustableColumn true;
+	button -c "AssetPrewarnSurebutton" -label "覆盖文件" AssetPrewarnSurebutton;
+	button -c "AssetPrewarnCancelbutton" -label "取消导出" AssetPrewarnCancelbutton;
+	showWindow;
+}
+
+//取消覆盖
+global proc AssetPrewarnCancelbutton ()
+{
+	deleteUI -window AssetPrewarn;
+}
+
+//确认覆盖
+global proc AssetPrewarnSurebutton ()
+{
+	string $Project = `optionVar -q CeresNowProject`;
+	string $ProjectTextField = `textField -q -tx CeresProjectTextField`;
+	string $AssetExportImportPath = `textField -q -tx AssetExportImportPathtextField`;
+	string $AssetExportImportFile = `textField -q -tx AssetExportImportFiletextField`;
+	$AssetExportImportPath = strip($AssetExportImportPath);
+	$AssetExportImportFile = strip($AssetExportImportFile);
+	string $mayaAssetExportImportPath = fromNativePath( $AssetExportImportPath );
+	string $AssetCodeArray[] = `textScrollList -q -allItems AssetCodetextScrollList`;
+	string $AssetNoteArray[] = `textScrollList -q -allItems AssetNotetextScrollList`;
+	string $AssetPathArray[] = `textScrollList -q -allItems AssetPathtextScrollList`;
+	string $AssetExportImportAll;
+	string $getPreFilesInCurrentDirectory[] = getPreFilesInCurrentDirectory();
+	int $numberOftextScrollList = `textScrollList -q -numberOfItems AssetCodetextScrollList`;
+	if(`gmatch $AssetExportImportPath ("*.pre")`)
+	{
+		$AssetExportImportAll = $mayaAssetExportImportPath;
+	}else
+	{
+		$AssetExportImportAll = $mayaAssetExportImportPath + "/" + $AssetExportImportFile + ".pre";
+	}
+	cleanFile ( $AssetExportImportAll );
+	if ($AssetExportImportFile != "" || `gmatch $AssetExportImportPath ("*.pre")`)
+	{
+		AssetExportCommend ( $AssetExportImportAll , $numberOftextScrollList , "$AssetCodeArray[]" , $AssetCodeArray );
+		AssetExportCommend ( $AssetExportImportAll , $numberOftextScrollList , "$AssetNoteArray[]" , $AssetNoteArray );
+		AssetExportCommend ( $AssetExportImportAll , $numberOftextScrollList , "$AssetPathArray[]" , $AssetPathArray );
+		string $commendtextcontent = "AssetImportCommend ( $AssetCodeArray , $AssetNoteArray , $AssetPathArray );\n";
+		writeFile ( $AssetExportImportAll , $commendtextcontent );
+		string $projecttextcontent = "optionVar -sv CeresNowProject \"" + $Project + "\";\n" + "textField -e -tx \"" + $ProjectTextField + "\" CeresProjectTextField;\n";
+		writeFile ( $AssetExportImportAll , $projecttextcontent );
+	}else
+	{
+		error("预设文件名不能为空！！！");
+	}
+	deleteUI -window AssetPrewarn;
+	print ("该预设已覆盖。\n");
+}
+
+//取消选择
+global proc AssettextScrollListClean ()
+{
+	textScrollList -e -deselectAll AssetCodetextScrollList;
+	textScrollList -e -deselectAll AssetNotetextScrollList;
+	textScrollList -e -deselectAll AssetPathtextScrollList;
+}
+
+//删除全部
+global proc AssettextScrollListDeleteAll ()
+{
+	textScrollList -e -removeAll AssetCodetextScrollList;
+	textScrollList -e -removeAll AssetNotetextScrollList;
+	textScrollList -e -removeAll AssetPathtextScrollList;
+}
+
+//删除选择
+global proc AssettextScrollListDelete ()
+{
+	//int $AssetPathselectIndexed[] = `textScrollList -q -selectIndexedItem AssetPathtextScrollList`;
+	int $AssetCodeselectIndexed[] = `textScrollList -q -selectIndexedItem AssetCodetextScrollList`;
+	//int $AssetNoteselectIndexed[] = `textScrollList -q -selectIndexedItem AssetNotetextScrollList`;
+	textScrollList -e -removeIndexedItem $AssetCodeselectIndexed[0] AssetCodetextScrollList;
+	textScrollList -e -removeIndexedItem $AssetCodeselectIndexed[0] AssetNotetextScrollList;
+	textScrollList -e -removeIndexedItem $AssetCodeselectIndexed[0] AssetPathtextScrollList;
+}
+
+//编辑窗口
+global proc EditWindow ()
+{
+	if (`window -exists EditAssetPreWindow`)
+	deleteUI -window EditAssetPreWindow;
+	window -title "编辑预设" -h 100 -w 250  -rtf 1  -s 0 -tlb 1 EditAssetPreWindow;
+	columnLayout -columnAttach both 5 -adjustableColumn true EditWindowcolumnLayout;
+	separator -h 5 -style "none" -p EditWindowcolumnLayout;
+	rowLayout -nc 2 -columnWidth2 125 125 -p EditWindowcolumnLayout;
+		text -w 125 "资产代号";
+		text -w 125 "资产备注";
+	rowLayout -nc 2 -columnWidth2 125 125 -p EditWindowcolumnLayout;
+		textField -w 125 -h 20 -tx "" -ann "编辑资产代号输入框" AssetCodeEditListtextField;
+		textField -w 125 -h 20 -tx "" -ann "编辑资产备注输入框" AssetNoteEditListtextField;
+	separator -h 5 -style "none" -p EditWindowcolumnLayout;
+	text -p EditWindowcolumnLayout -w 250 "— — — — — —  预设路径  — — — — — —";
+	separator -h 5 -style "none" -p EditWindowcolumnLayout;
+	textField -p EditWindowcolumnLayout -w 125 -h 20 -tx "" -ann "资产预设路径编辑框" AssetPathEditListtextField;
+	separator -h 5 -style "none" -p EditWindowcolumnLayout;
+	button -p EditWindowcolumnLayout -w 250 -c "Confirmedit" -label "确认编辑";
+	separator -h 5 -style "none" -p EditWindowcolumnLayout;
+	showWindow;
+	string $AssetCodeString[] = `textScrollList -q -selectItem AssetCodetextScrollList`;
+	string $AssetNoteString[] = `textScrollList -q -selectItem AssetNotetextScrollList`;
+	string $AssetPathString[] = `textScrollList -q -selectItem AssetPathtextScrollList`;
+	textField -e -tx $AssetCodeString[0] AssetCodeEditListtextField;
+	textField -e -tx $AssetNoteString[0] AssetNoteEditListtextField;
+	textField -e -tx $AssetPathString[0] AssetPathEditListtextField;
+}
+
+//确认编辑
+global proc Confirmedit ()
+{
+	//int $AssetPathselectIndexed[] = `textScrollList -q -selectIndexedItem AssetPathtextScrollList`;
+	int $AssetCodeselectIndexed[] = `textScrollList -q -selectIndexedItem AssetCodetextScrollList`;
+	//int $AssetNoteselectIndexed[] = `textScrollList -q -selectIndexedItem AssetNotetextScrollList`;
+	string $AssetCodeEditString = strip(`textField -q -tx AssetCodeEditListtextField`);
+	string $AssetNoteEditString = strip(`textField -q -tx AssetNoteEditListtextField`);
+	string $AssetPathEditString = strip(`textField -q -tx AssetPathEditListtextField`);
+	textScrollList -e -removeIndexedItem $AssetCodeselectIndexed[0] AssetCodetextScrollList;
+	textScrollList -e -removeIndexedItem $AssetCodeselectIndexed[0] AssetNotetextScrollList;
+	textScrollList -e -removeIndexedItem $AssetCodeselectIndexed[0] AssetPathtextScrollList;
+	textScrollList -e -appendPosition $AssetCodeselectIndexed[0] $AssetCodeEditString AssetCodetextScrollList;
+	textScrollList -e -appendPosition $AssetCodeselectIndexed[0] $AssetNoteEditString AssetNotetextScrollList;
+	textScrollList -e -appendPosition $AssetCodeselectIndexed[0] $AssetPathEditString AssetPathtextScrollList;
+	textScrollList -e -selectIndexedItem $AssetCodeselectIndexed[0] AssetCodetextScrollList;
+	textScrollList -e -selectIndexedItem $AssetCodeselectIndexed[0] AssetNotetextScrollList;
+	textScrollList -e -selectIndexedItem $AssetCodeselectIndexed[0] AssetPathtextScrollList;
+	deleteUI -window EditAssetPreWindow;
+}
+
+//选择资产路径时资产备注跟随选择
+global proc AssetPathtextselectCommand ()
+{
+	int $AssetPathselectIndexed[] = `textScrollList -q -selectIndexedItem AssetPathtextScrollList`;
+	//int $AssetCodeselectIndexed[] = `textScrollList -q -selectIndexedItem AssetCodetextScrollList`;
+	//int $AssetNoteselectIndexed[] = `textScrollList -q -selectIndexedItem AssetNotetextScrollList`;
+	textScrollList -e -deselectAll AssetCodetextScrollList;
+	textScrollList -e -deselectAll AssetNotetextScrollList;
+	textScrollList -e -deselectAll AssetPathtextScrollList;
+	textScrollList -e -selectIndexedItem $AssetPathselectIndexed[0] AssetCodetextScrollList;
+	textScrollList -e -selectIndexedItem $AssetPathselectIndexed[0] AssetNotetextScrollList;
+	textScrollList -e -selectIndexedItem $AssetPathselectIndexed[0] AssetPathtextScrollList;
+}
+
+//选择资产代号时资产备注跟随选择
+global proc AssetCodetextselectCommand ()
+{
+	//int $AssetPathselectIndexed[] = `textScrollList -q -selectIndexedItem AssetPathtextScrollList`;
+	int $AssetCodeselectIndexed[] = `textScrollList -q -selectIndexedItem AssetCodetextScrollList`;
+	//int $AssetNoteselectIndexed[] = `textScrollList -q -selectIndexedItem AssetNotetextScrollList`;
+	textScrollList -e -deselectAll AssetCodetextScrollList;
+	textScrollList -e -deselectAll AssetNotetextScrollList;
+	textScrollList -e -deselectAll AssetPathtextScrollList;
+	textScrollList -e -selectIndexedItem $AssetCodeselectIndexed[0] AssetCodetextScrollList;
+	textScrollList -e -selectIndexedItem $AssetCodeselectIndexed[0] AssetNotetextScrollList;
+	textScrollList -e -selectIndexedItem $AssetCodeselectIndexed[0] AssetPathtextScrollList;
+}
+
+//选择资产备注时资产代号跟随选择
+global proc AssetNotetextselectCommand ()
+{
+	//int $AssetPathselectIndexed[] = `textScrollList -q -selectIndexedItem AssetPathtextScrollList`;
+	//int $AssetCodeselectIndexed[] = `textScrollList -q -selectIndexedItem AssetCodetextScrollList`;
+	int $AssetNoteselectIndexed[] = `textScrollList -q -selectIndexedItem AssetNotetextScrollList`;
+	textScrollList -e -deselectAll AssetCodetextScrollList;
+	textScrollList -e -deselectAll AssetNotetextScrollList;
+	textScrollList -e -deselectAll AssetPathtextScrollList;
+	textScrollList -e -selectIndexedItem $AssetNoteselectIndexed[0] AssetCodetextScrollList;
+	textScrollList -e -selectIndexedItem $AssetNoteselectIndexed[0] AssetNotetextScrollList;
+	textScrollList -e -selectIndexedItem $AssetNoteselectIndexed[0] AssetPathtextScrollList;
+}
+
+//增加资产预设
+global proc AssettextScrollListEdit ()
+{
+	$SelectedlocationKey = `checkBox -q -v Selectedlocation`;
+	int $AssetCodeselectIndexed[] = `textScrollList -q -selectIndexedItem AssetCodetextScrollList`;
+	string $AssetCodetextField = strip(`textField -q -tx AssetCodetextScrollListtextField`);
+	string $AssetNotetextField = strip(`textField -q -tx AssetNotetextScrollListtextField`);
+	string $AssetPathtextField = strip(`textField -q -tx AssetPathtextScrollListtextField`);
+	if ($SelectedlocationKey == 1)
+	{
+		textScrollList -e -appendPosition ($AssetCodeselectIndexed[0]+1) $AssetCodetextField AssetCodetextScrollList;
+		textScrollList -e -appendPosition ($AssetCodeselectIndexed[0]+1) $AssetNotetextField AssetNotetextScrollList;
+		textScrollList -e -appendPosition ($AssetCodeselectIndexed[0]+1) $AssetPathtextField AssetPathtextScrollList;
+	}else{
+		textScrollList -e -append $AssetCodetextField AssetCodetextScrollList;
+		textScrollList -e -append $AssetNotetextField AssetNotetextScrollList;
+		textScrollList -e -append $AssetPathtextField AssetPathtextScrollList;
+	}
+}

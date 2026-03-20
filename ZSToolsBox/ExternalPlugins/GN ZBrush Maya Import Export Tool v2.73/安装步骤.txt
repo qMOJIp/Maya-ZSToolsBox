@@ -1,0 +1,10 @@
+﻿拷贝ZBrush文件夹里面的内容到ZBrush安装目录如下位置，默认C:\Program Files\Pixologic\ZBrush Version\ZStartup\ZPlugs64
+将Maya文件夹里面的GN_ImportExport文件夹和userSetup.mel拷贝到Maya的脚本目录，默认文档\maya\Maya版本\zh_CN\scripts
+
+
+
+龋齿一号GFXCamp：https://www.gfxcamp.com/
+
+淘宝店铺：https://gfxcampcg.taobao.com/
+
+龋齿一号GFXCamp新浪微博：https://weibo.com/gfxcamp

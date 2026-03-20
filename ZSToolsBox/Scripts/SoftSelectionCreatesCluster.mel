@@ -1,0 +1,898 @@
+global proc convertSoftSelectionToCluster()
+{
+   float $startTime = `timerX`;
+
+   string $selectedItems[] = `ls -sl -fl`;
+   
+   if (size($selectedItems) == 0) {
+       warning -n "没有选择任何对象或组件";
+        inViewMessage
+            -a .9
+            -smg ("<font color=\"orange\">没有选择任何对象或组件 ")
+            -pos "topCenter"
+            -bkc 0x00001100
+            -fade
+            -fadeInTime 100 -fadeStayTime 2200
+            -fadeOutTime 600;
+       return;
+   }
+   
+   string $selectedObjects[] = {};
+   int $objIndex = 0;
+   
+   for ($item in $selectedItems) {
+       if (`gmatch $item "*.*"`) {
+           int $dotPos = `match "\\." $item`;
+           if ($dotPos > 0) {
+               string $objName = `substring $item 1 $dotPos`;
+               
+               int $exists = 0;
+               for ($i = 0; $i < size($selectedObjects); $i++) {
+                   if ($selectedObjects[$i] == $objName) {
+                       $exists = 1;
+                       break;
+                   }
+               }
+               
+               if (!$exists) {
+                   $selectedObjects[$objIndex] = $objName;
+                   $objIndex++;
+               }
+           }
+       } else {
+           int $exists = 0;
+           for ($i = 0; $i < size($selectedObjects); $i++) {
+               if ($selectedObjects[$i] == $item) {
+                   $exists = 1;
+                   break;
+               }
+           }
+           
+           if (!$exists) {
+               $selectedObjects[$objIndex] = $item;
+               $objIndex++;
+           }
+       }
+   }
+   
+   string $unsupportedObjects = "";
+   int $hasUnsupported = 0;
+   
+   for ($obj in $selectedObjects) {
+       string $objType = `objectType $obj`;
+       
+       if ($objType == "transform") {
+           string $shapes[] = `listRelatives -s -path $obj`;
+           
+           if (size($shapes) == 0) {
+               $unsupportedObjects += $obj + " ";
+               $hasUnsupported = 1;
+               continue;
+           }
+           
+           int $hasSupportedShape = 0;
+           for ($shape in $shapes) {
+               string $shapeType = `objectType $shape`;
+               
+               if ($shapeType == "mesh" || 
+                   $shapeType == "nurbsCurve" || 
+                   $shapeType == "nurbsSurface" || 
+                   $shapeType == "lattice") {
+                   $hasSupportedShape = 1;
+                   break;
+               }
+           }
+           
+           if (!$hasSupportedShape) {
+               $unsupportedObjects += $obj + " ";
+               $hasUnsupported = 1;
+           }
+       } else if ($objType == "mesh" || 
+                  $objType == "nurbsCurve" || 
+                  $objType == "nurbsSurface" || 
+                  $objType == "lattice") {
+           continue;
+       } else {
+           $unsupportedObjects += $obj + " ";
+           $hasUnsupported = 1;
+       }
+   }
+   
+   if ($hasUnsupported) {
+       warning -n ("以下对象不受支持: " + $unsupportedObjects + "\n请选择多边形网格、NURBS曲线、NURBS曲面或晶格。");
+        inViewMessage
+            -a .9
+            -smg ("<font color=\"orange\">以下对象不受支持: <font color=\"yellow\">" + $unsupportedObjects + "\n<font color=\"orange\">请选择多边形网格、NURBS曲线、NURBS曲面或晶格。")
+            -pos "topCenter"
+            -bkc 0x00001100
+            -fade
+            -fadeInTime 100 -fadeStayTime 2200
+            -fadeOutTime 600;
+       return;
+   }
+   
+   int $hasComponentSelection = 0;
+   for ($item in $selectedItems) {
+       if (`gmatch $item "*.*"`) {
+           $hasComponentSelection = 1;
+           break;
+       }
+   }
+   
+   if (!$hasComponentSelection && size($selectedObjects) > 0) {
+       string $obj = $selectedObjects[0];
+       
+       string $shapes[] = `listRelatives -s -path $obj`;
+       
+       if (size($shapes) == 0) {
+           warning -n "无法获取对象的形状节点";
+            inViewMessage
+                -a .9
+                -smg ("<font color=\"orange\">无法获取对象的形状节点 ")
+                -pos "topCenter"
+                -bkc 0x00001100
+                -fade
+                -fadeInTime 100 -fadeStayTime 2200
+                -fadeOutTime 600;
+           return;
+       }
+       
+       int $hasSupportedShape = 0;
+       string $supportedShape = "";
+       string $shapeType = "";
+       
+       for ($shape in $shapes) {
+           $shapeType = `objectType $shape`;
+           
+           if ($shapeType == "mesh" || 
+               $shapeType == "nurbsCurve" || 
+               $shapeType == "nurbsSurface" || 
+               $shapeType == "lattice") {
+               $hasSupportedShape = 1;
+               $supportedShape = $shape;
+               break;
+           }
+       }
+       
+       if (!$hasSupportedShape) {
+           warning -n ("以下对象不受支持: " + $obj + "\n请选择多边形网格、NURBS曲线、NURBS曲面或晶格。");
+            inViewMessage
+                -a .9
+                -smg ("<font color=\"orange\">以下对象不受支持: <font color=\"yellow\">" + $obj + "<font color=\"orange\">\n请选择多边形网格、NURBS曲线、NURBS曲面或晶格。 ")
+                -pos "topCenter"
+                -bkc 0x00001100
+                -fade
+                -fadeInTime 100 -fadeStayTime 2200
+                -fadeOutTime 600;
+           return;
+       }
+       
+       string $allPoints[];
+       int $pointCount = 0;
+       
+       if ($shapeType == "mesh") {
+           int $countArray[] = `polyEvaluate -v $obj`;
+           $pointCount = $countArray[0];
+           for ($i = 0; $i < $pointCount; $i++) {
+               $allPoints[$i] = $obj + ".vtx[" + $i + "]";
+           }
+       } else if ($shapeType == "nurbsCurve") {
+           $pointCount = `getAttr ($supportedShape + ".spans")` + `getAttr ($supportedShape + ".degree")`;
+           for ($i = 0; $i < $pointCount; $i++) {
+               $allPoints[$i] = $obj + ".cv[" + $i + "]";
+           }
+       } else if ($shapeType == "nurbsSurface") {
+           int $uCount = `getAttr ($supportedShape + ".spansU")` + `getAttr ($supportedShape + ".degreeU")`;
+           int $vCount = `getAttr ($supportedShape + ".spansV")` + `getAttr ($supportedShape + ".degreeV")`;
+           $pointCount = $uCount * $vCount;
+           for ($i = 0; $i < $pointCount; $i++) {
+               int $uIndex = $i % $uCount;
+               int $vIndex = (int)($i / $uCount);
+               $allPoints[$i] = $obj + ".cv[" + $uIndex + "][" + $vIndex + "]";
+           }
+       } else if ($shapeType == "lattice") {
+           int $uCount = `getAttr ($supportedShape + ".sDivisions")`;
+           int $vCount = `getAttr ($supportedShape + ".tDivisions")`;
+           int $wCount = `getAttr ($supportedShape + ".uDivisions")`;
+           $pointCount = $uCount * $vCount * $wCount;
+           for ($i = 0; $i < $pointCount; $i++) {
+               int $divisionsUV = $uCount * $vCount;
+               int $wIndex = (int)($i / $divisionsUV);
+               int $remainder = $i % $divisionsUV;
+               int $vIndex = (int)($remainder / $uCount);
+               int $uIndex = $remainder % $uCount;
+               $allPoints[$i] = $obj + ".pt[" + $uIndex + "][" + $vIndex + "][" + $wIndex + "]";
+           }
+       }
+       
+       progressWindow -title "创建簇" -status "<font color='white'><b>获取所有点..." -progress 0 -maxValue 100 -isInterruptable true;
+       
+       if ($pointCount > 0) {
+           for ($i = 0; $i < $pointCount; $i++) {
+               if (`progressWindow -query -isCancelled`) {
+                   progressWindow -endProgress;
+                   warning -n "操作已取消";
+                   inViewMessage
+                   -a .9
+                   -smg ("<font color=\"orange\">操作已取消 ")
+                   -pos "topCenter"
+                   -bkc 0x00001100
+                   -fade
+                   -fadeInTime 100 -fadeStayTime 2200
+                   -fadeOutTime 600;
+                   return;
+               }
+               int $currentProgress = 30.0 * ($i + 1) / $pointCount;
+               progressWindow -edit -progress $currentProgress -status ("<font color='white'><b>获取点: <font color='yellow'>" + ($i + 1) + "<font color='white'> / <font color='limegreen'>" + $pointCount);
+           }
+       }
+       
+       progressWindow -edit -progress 30 -status "<font color='white'><b>点获取完成";
+       
+       select -r $allPoints;
+       
+       float $centerPos[] = `xform -q -ws -rp $obj`;
+       
+       string $clusterHandle[] = `cluster -rel -en 1`;
+       
+       move $centerPos[0] $centerPos[1] $centerPos[2] 
+            ($clusterHandle[1] + ".scalePivot") ($clusterHandle[1] + ".rotatePivot");
+       
+       setAttr ($clusterHandle[1] + "Shape.origin") $centerPos[0] $centerPos[1] $centerPos[2];
+       
+       progressWindow -edit -progress 60 -status "<font color='white'><b>分配权重...";
+       
+       for ($i = 0; $i < $pointCount; $i++) {
+           if (`progressWindow -query -isCancelled`) {
+               progressWindow -endProgress;
+               warning -n "操作已取消";
+                   inViewMessage
+                   -a .9
+                   -smg ("<font color=\"orange\">操作已取消 ")
+                   -pos "topCenter"
+                   -bkc 0x00001100
+                   -fade
+                   -fadeInTime 100 -fadeStayTime 2200
+                   -fadeOutTime 600;
+               return;
+           }
+           
+           percent -v 1.0 $clusterHandle[0] $allPoints[$i];
+           
+           int $currentProgress = 60 + int(40.0 * ($i + 1) / $pointCount);
+           progressWindow -edit -progress $currentProgress -status ("<font color='white'><b>分配权重: <font color='yellow'>" + ($i + 1) + "<font color='white'> / <font color='limegreen'>" + $pointCount);
+       }
+       
+       progressWindow -endProgress;
+       
+       select -r $clusterHandle[1];
+       
+       float $endTime = `timerX`;
+       float $duration = $endTime - $startTime;
+       //print ("已为物体 " + $obj + " 创建簇，包含 " + $pointCount + " 个点，耗时: " + $duration + " 秒");
+        inViewMessage
+            -a .9
+            -smg ("<font color=\"limegreen\">已为物体 <font color=\"yellow\">" + $obj + "<font color=\"limegreen\"> 创建簇，包含 <font color=\"yellow\">" + $pointCount + "<font color=\"limegreen\"> 个点，耗时: <font color=\"orange\">" + $duration + "<font\> 秒")
+            -pos "topCenter"
+            -bkc 0x00001100
+            -fade
+            -fadeInTime 100 -fadeStayTime 2200
+            -fadeOutTime 600;
+       return;
+   }
+   
+   if (!`softSelect -q -softSelectEnabled`) {
+       confirmDialog -title "警告" -message "<font color=white><h2><b>请先启用软选择（按B键）并选择一些点" 
+                     -button "确定" -defaultButton "确定";
+       return;
+   }
+   
+   $selectedItems = `ls -sl -fl`;
+   if (size($selectedItems) > 0) {
+       int $hasNonVertex = 0;
+       for ($sel in $selectedItems) {
+           if (`gmatch $sel "*.*"`) {
+               if (!`gmatch $sel "*.vtx[*"` && 
+                   !`gmatch $sel "*.cv[*"` && 
+                   !`gmatch $sel "*.pt[*"` &&
+                   !`gmatch $sel "*.ep[*"` &&  
+                   !`gmatch $sel "*.uv[*"`) {  
+                   $hasNonVertex = 1;
+                   break;
+               }
+           }
+       }
+       
+       if ($hasNonVertex) {
+           ConvertSelectionToVertices;
+       }
+   }
+   
+   string $selectedPoints[] = `ls -sl -fl`;
+   if (size($selectedPoints) == 0) {
+       warning -n "请选择一些点（顶点、CV点或晶格点）";
+                   inViewMessage
+                   -a .9
+                   -smg ("<font color=\"orange\">请选择一些点（顶点、CV点或晶格点） ")
+                   -pos "topCenter"
+                   -bkc 0x00001100
+                   -fade
+                   -fadeInTime 100 -fadeStayTime 2200
+                   -fadeOutTime 600;
+       return;
+   }
+   
+   float $selectedVertexPos[] = `pointPosition -w $selectedPoints[0]`;
+   string $shapeNodes[] = `listRelatives -p $selectedPoints[0]`;
+   if (size($shapeNodes) == 0) {
+       warning -n "无法获取形状节点";
+                   inViewMessage
+                   -a .9
+                   -smg ("<font color=\"orange\">无法获取形状节点 ")
+                   -pos "topCenter"
+                   -bkc 0x00001100
+                   -fade
+                   -fadeInTime 100 -fadeStayTime 2200
+                   -fadeOutTime 600;
+       return;
+   }
+   
+   string $transformNodes[] = `listRelatives -p $shapeNodes[0]`;
+   if (size($transformNodes) == 0) {
+       warning -n "无法获取变换节点";
+                   inViewMessage
+                   -a .9
+                   -smg ("<font color=\"orange\">无法获取变换节点 ")
+                   -pos "topCenter"
+                   -bkc 0x00001100
+                   -fade
+                   -fadeInTime 100 -fadeStayTime 2200
+                   -fadeOutTime 600;
+       return;
+   }
+   
+   string $object = $transformNodes[0];
+   string $shape = $shapeNodes[0];
+   
+   string $objectType = `objectType $shape`;
+   string $pointType = "";
+   string $pointPrefix = "";
+   int $pointCount = 0;
+   int $uCount = 0, $vCount = 0, $wCount = 0;
+   
+   if ($objectType == "mesh") {
+       $pointType = "vtx";
+       $pointPrefix = ".vtx[";
+       int $countArray[] = `polyEvaluate -v $object`;
+       $pointCount = $countArray[0];
+   }
+   else if ($objectType == "nurbsCurve") {
+       $pointType = "cv";
+       $pointPrefix = ".cv[";
+       $pointCount = `getAttr ($shape + ".spans")` + `getAttr ($shape + ".degree")`;
+   }
+   else if ($objectType == "nurbsSurface") {
+       $pointType = "cv";
+       $pointPrefix = ".cv[";
+       $uCount = `getAttr ($shape + ".spansU")` + `getAttr ($shape + ".degreeU")`;
+       $vCount = `getAttr ($shape + ".spansV")` + `getAttr ($shape + ".degreeV")`;
+       $pointCount = $uCount * $vCount;
+   }
+   else if ($objectType == "lattice") {
+       $pointType = "pt";
+       $pointPrefix = ".pt[";
+       $uCount = `getAttr ($shape + ".sDivisions")`;
+       $vCount = `getAttr ($shape + ".tDivisions")`;
+       $wCount = `getAttr ($shape + ".uDivisions")`;
+       $pointCount = $uCount * $vCount * $wCount;
+   }
+   else {
+       warning -n ("不支持的对象类型: " + $objectType);
+                   inViewMessage
+                   -a .9
+                   -smg ("<font color=\"orange\">不支持的对象类型: <font color=\"yellow\">" + $objectType)
+                   -pos "topCenter"
+                   -bkc 0x00001100
+                   -fade
+                   -fadeInTime 100 -fadeStayTime 2200
+                   -fadeOutTime 600;
+       return;
+   }
+
+   progressWindow -title "创建簇" -status "<font color='white'><b>获取所有点..." -progress 0 -maxValue 100 -isInterruptable true;
+   
+   float $originalPositionsX[];
+   float $originalPositionsY[];
+   float $originalPositionsZ[];
+   
+   string $allPointNames[] = {};
+   
+   int $uIndices[];
+   int $vIndices[];
+   
+   for ($i = 0; $i < $pointCount; $i++)
+   {
+        if (`progressWindow -query -isCancelled`) {
+            progressWindow -endProgress;
+            warning -n "操作已取消";
+                   inViewMessage
+                   -a .9
+                   -smg ("<font color=\"orange\">操作已取消 ")
+                   -pos "topCenter"
+                   -bkc 0x00001100
+                   -fade
+                   -fadeInTime 100 -fadeStayTime 2200
+                   -fadeOutTime 600;
+            return;
+        }
+        
+        string $pointName = "";
+        int $uIndex, $vIndex, $wIndex;
+        
+        if ($objectType == "nurbsSurface") {
+            $uIndex = $i % $uCount;
+            $vIndex = (int)($i / $uCount);
+            $pointName = $object + ".cv[" + $uIndex + "][" + $vIndex + "]";
+            $uIndices[$i] = $uIndex;
+            $vIndices[$i] = $vIndex;
+        }
+        else if ($objectType == "lattice") {
+            int $divisionsUV = $uCount * $vCount;
+            $wIndex = (int)($i / $divisionsUV);
+            int $remainder = $i % $divisionsUV;
+            $vIndex = (int)($remainder / $uCount);
+            $uIndex = $remainder % $uCount;
+            $pointName = $object + ".pt[" + $uIndex + "][" + $vIndex + "][" + $wIndex + "]";
+        }
+        else {
+            $pointName = $object + $pointPrefix + $i + "]";
+        }
+        
+        $allPointNames[$i] = $pointName;
+        
+        float $pos[] = `pointPosition -w $pointName`;
+        if (size($pos) >= 3) {
+            $originalPositionsX[$i] = $pos[0];
+            $originalPositionsY[$i] = $pos[1];
+            $originalPositionsZ[$i] = $pos[2];
+        }
+        
+        int $currentProgress = int(30.0 * ($i + 1) / $pointCount);
+        progressWindow -edit -progress $currentProgress -status ("<font color='white'><b>获取点: <font color='yellow'>" + ($i + 1) + "<font color='white'> / <font color='limegreen'>" + $pointCount);
+   }
+   
+   progressWindow -edit -progress 30 -status "<font color='white'><b>点获取完成，准备计算权重...";
+   
+   string $backupSelection[] = `ls -sl`;
+   
+   select -r $selectedPoints[0];
+   move -r 1 0 0;
+   
+   float $movedPositionsX[];
+   float $movedPositionsY[];
+   float $movedPositionsZ[];
+   
+   progressWindow -edit -progress 30 -status "<font color='white'><b>计算点权重...";
+   
+   for ($i = 0; $i < $pointCount; $i++)
+   {
+        if (`progressWindow -query -isCancelled`) {
+            move -r -1 0 0;
+            select -r $backupSelection;
+            progressWindow -endProgress;
+            warning -n "操作已取消";
+                   inViewMessage
+                   -a .9
+                   -smg ("<font color=\"orange\">操作已取消 ")
+                   -pos "topCenter"
+                   -bkc 0x00001100
+                   -fade
+                   -fadeInTime 100 -fadeStayTime 2200
+                   -fadeOutTime 600;
+            return;
+        }
+        
+        string $pointName = $allPointNames[$i];
+        
+        float $pos[] = `pointPosition -w $pointName`;
+        if (size($pos) >= 3) {
+            $movedPositionsX[$i] = $pos[0];
+            $movedPositionsY[$i] = $pos[1];
+            $movedPositionsZ[$i] = $pos[2];
+        }
+        
+        int $currentProgress = 30 + int(30.0 * ($i + 1) / $pointCount);
+        progressWindow -edit -progress $currentProgress -status ("<font color='white'><b>计算权重: <font color='yellow'>" + ($i + 1) + "<font color='white'> / <font color='limegreen'>" + $pointCount);
+   }
+   
+   move -r -1 0 0;
+   
+   select -r $backupSelection;
+   
+   float $weights[];
+   string $affectedPoints[] = {};
+   int $affectedCount = 0;
+   
+   int $selectedUIndex = -1;
+   int $selectedVIndex = -1;
+   
+   if ($objectType == "nurbsSurface") {
+       for ($i = 0; $i < $pointCount; $i++) {
+           if ($allPointNames[$i] == $selectedPoints[0]) {
+               $selectedUIndex = $uIndices[$i];
+               $selectedVIndex = $vIndices[$i];
+               break;
+           }
+       }
+   }
+   
+   for ($i = 0; $i < $pointCount; $i++)
+   {
+        float $displacementX = $movedPositionsX[$i] - $originalPositionsX[$i];
+        float $weight = abs($displacementX); 
+        
+        if ($objectType == "nurbsSurface" && $selectedUIndex >= 0 && $selectedVIndex >= 0) {
+            float $uDist = abs($uIndices[$i] - $selectedUIndex) / (float)$uCount;
+            float $vDist = abs($vIndices[$i] - $selectedVIndex) / (float)$vCount;
+            float $uvDist = sqrt($uDist * $uDist + $vDist * $vDist);
+            
+            float $softSelectRadius = `softSelect -q -softSelectDistance`;
+            float $softSelectFalloff = `softSelect -q -softSelectFalloff`;
+            
+            if ($softSelectRadius > 0) {
+                float $normalizedUVDist = $uvDist;
+                if ($normalizedUVDist > 1) {
+                    $normalizedUVDist = 1;
+                }
+                
+                if ($normalizedUVDist < 1) {
+                    float $uvWeight = 1.0 - $normalizedUVDist;
+                    
+                    if ($softSelectFalloff > 0) {
+                        $uvWeight = pow($uvWeight, $softSelectFalloff);
+                    }
+                    
+                    $weight = $weight * $uvWeight;
+                }
+            }
+        }
+        
+        $weights[$i] = $weight;
+        
+        if ($weight > 0.0001) {
+            $affectedPoints[$affectedCount] = $allPointNames[$i];
+            $affectedCount++;
+        }
+   }
+   
+   if ($affectedCount == 0) {
+       for ($i = 0; $i < size($selectedPoints); $i++) {
+           for ($j = 0; $j < $pointCount; $j++) {
+               if ($allPointNames[$j] == $selectedPoints[$i]) {
+                   $weights[$j] = 1.0; 
+                   $affectedPoints[$affectedCount] = $allPointNames[$j];
+                   $affectedCount++;
+                   break;
+               }
+           }
+       }
+       
+       if ($affectedCount == 0) {
+           progressWindow -endProgress;
+           warning -n "没有找到受软选择影响的点，请确保软选择半径足够大";
+                   inViewMessage
+                   -a .9
+                   -smg ("<font color=\"orange\">没有找到受软选择影响的点，请确保软选择半径足够大 ")
+                   -pos "topCenter"
+                   -bkc 0x00001100
+                   -fade
+                   -fadeInTime 100 -fadeStayTime 2200
+                   -fadeOutTime 600;
+           return;
+       }
+   }
+   
+   if ($objectType == "nurbsSurface") {
+       for ($i = 0; $i < $affectedCount; $i++) {
+           string $currentPoint = $affectedPoints[$i];
+           
+           int $weightIndex = -1;
+           for ($j = 0; $j < $pointCount; $j++) {
+               if ($allPointNames[$j] == $currentPoint) {
+                   $weightIndex = $j;
+                   break;
+               }
+           }
+           
+           if ($weightIndex >= 0) {
+               float $dx = $movedPositionsX[$weightIndex] - $originalPositionsX[$weightIndex];
+               float $dy = $movedPositionsY[$weightIndex] - $originalPositionsY[$weightIndex];
+               float $dz = $movedPositionsZ[$weightIndex] - $originalPositionsZ[$weightIndex];
+               float $displacementLength = sqrt($dx*$dx + $dy*$dy + $dz*$dz);
+               
+               $weights[$weightIndex] = $displacementLength;
+           }
+       }
+   }
+
+   select -r $affectedPoints;
+   
+   string $clusterHandle[] = `cluster -rel -en 1`;
+   
+   move $selectedVertexPos[0] $selectedVertexPos[1] $selectedVertexPos[2] 
+        ($clusterHandle[1] + ".scalePivot") ($clusterHandle[1] + ".rotatePivot");
+   
+   setAttr ($clusterHandle[1] + "Shape.origin") $selectedVertexPos[0] $selectedVertexPos[1] $selectedVertexPos[2];
+   
+   progressWindow -edit -progress 60 -status "<font color='white'><b>分配权重...";
+   
+   for ($i = 0; $i < $affectedCount; $i++)
+   {
+        if (`progressWindow -query -isCancelled`) {
+            progressWindow -endProgress;
+            warning -n "操作已取消";
+                   inViewMessage
+                   -a .9
+                   -smg ("<font color=\"orange\">操作已取消 ")
+                   -pos "topCenter"
+                   -bkc 0x00001100
+                   -fade
+                   -fadeInTime 100 -fadeStayTime 2200
+                   -fadeOutTime 600;
+            return;
+        }
+        
+        string $currentPoint = $affectedPoints[$i];
+        
+        int $weightIndex = -1;
+        for ($j = 0; $j < $pointCount; $j++) {
+            if ($allPointNames[$j] == $currentPoint) {
+                $weightIndex = $j;
+                break;
+            }
+        }
+        
+        if ($weightIndex >= 0 && $weights[$weightIndex] > 0.0001) {
+            percent -v $weights[$weightIndex] $clusterHandle[0] $currentPoint;
+        }
+        
+        int $currentProgress = 60 + int(40.0 * ($i + 1) / $affectedCount);
+        progressWindow -edit -progress $currentProgress -status ("<font color='white'><b>分配权重: <font color='yellow'>" + ($i + 1) + "<font color='white'> / <font color='limegreen'>" + $affectedCount );
+   }
+   
+   progressWindow -endProgress;
+   
+   select -r $clusterHandle[1];
+
+   float $endTime = `timerX`;
+   float $duration = $endTime - $startTime;
+   //print ("已创建簇，包含 " + $affectedCount + " 个受影响点，耗时: " + $duration + " 秒");
+    inViewMessage
+        -a .9
+        -smg ("<font color=\"limegreen\">已创建簇，包含 <font color=\"yellow\">" + $affectedCount + "<font color=\"limegreen\"> 个受影响点，耗时: <font color=\"orange\">" + $duration + "<font\> 秒")
+        -pos "topCenter"
+        -bkc 0x00001100
+        -fade
+        -fadeInTime 100 -fadeStayTime 2200
+        -fadeOutTime 600;
+}
+
+global proc createSoftSelectToClusterUI()
+{
+    if (`window -exists softSelectClusterWindow`) {
+        deleteUI softSelectClusterWindow;
+    }
+
+    if (`windowPref -ex softSelectClusterWindow`) {
+        windowPref -r softSelectClusterWindow;
+    }
+    
+    window -title "软选择转簇工具" -widthHeight 180 285 -tlb false -mnb false -mxb false -sizeable true softSelectClusterWindow;
+    
+    formLayout -nd 100 -w 185 mainForm;
+    
+    text -label "<font color=white><h3>软选择转簇</h3>" -align "center" -height 30 titleText;
+    separator -height 3 titleSep;
+    
+    text -label "使用说明:" -align "left" -height 20 instructionLabel1;
+    text -label "1. 启用软选择（按B键）" -align "left" -height 20 instructionText1;
+    text -label "2. 选择一些点" -align "left" -height 20 instructionText2;
+    text -label "3. 点击下方按钮" -align "left" -height 20 instructionText3;
+    
+    separator -height 5 midSep;
+    
+    text -label "支持的对象类型:" -align "left" -height 20 typeLabel1;
+    text -label "- 多边形网格 (.vtx)" -align "left" -height 20 typeText1;
+    text -label "- NURBS曲线 (.cv)" -align "left" -height 20 typeText2;
+    text -label "- NURBS曲面 (.cv)" -align "left" -height 20 typeText3;
+    text -label "- 晶格 (.pt)" -align "left" -height 20 typeText4;
+    
+    separator -height 5 bottomSep;
+    
+    button -label "创 建 簇" -height 40 -command "convertSoftSelectionToCluster" 
+           -backgroundColor 0.4 0.6 0.8 -annotation "将软选择区域转换为簇变形器" actionButton;
+    
+    separator -height 5 buttonSep;
+    
+    formLayout -edit
+        -attachForm titleText "top" 1
+        -attachForm titleText "left" 5
+        -attachForm titleText "right" 5
+        
+        -attachControl titleSep "top" 1 titleText
+        -attachForm titleSep "left" 5
+        -attachForm titleSep "right" 5
+        
+        -attachControl instructionLabel1 "top" 1 titleSep
+        -attachForm instructionLabel1 "left" 10
+        -attachForm instructionLabel1 "right" 5
+        
+        -attachControl instructionText1 "top" 1 instructionLabel1
+        -attachForm instructionText1 "left" 15
+        -attachForm instructionText1 "right" 5
+        
+        -attachControl instructionText2 "top" 2 instructionText1
+        -attachForm instructionText2 "left" 15
+        -attachForm instructionText2 "right" 5
+        
+        -attachControl instructionText3 "top" 1 instructionText2
+        -attachForm instructionText3 "left" 15
+        -attachForm instructionText3 "right" 5
+        
+        -attachControl midSep "top" 5 instructionText3
+        -attachForm midSep "left" 5
+        -attachForm midSep "right" 5
+        
+        -attachControl typeLabel1 "top" 5 midSep
+        -attachForm typeLabel1 "left" 10
+        -attachForm typeLabel1 "right" 5
+        
+        -attachControl typeText1 "top" 1 typeLabel1
+        -attachForm typeText1 "left" 15
+        -attachForm typeText1 "right" 5
+        
+        -attachControl typeText2 "top" 1 typeText1
+        -attachForm typeText2 "left" 15
+        -attachForm typeText2 "right" 5
+        
+        -attachControl typeText3 "top" 1 typeText2
+        -attachForm typeText3 "left" 15
+        -attachForm typeText3 "right" 5
+        
+        -attachControl typeText4 "top" 1 typeText3
+        -attachForm typeText4 "left" 15
+        -attachForm typeText4 "right" 5
+        
+        -attachControl bottomSep "top" 1 typeText4
+        -attachForm bottomSep "left" 5
+        -attachForm bottomSep "right" 5
+        
+        -attachControl actionButton "top" 5 bottomSep
+        -attachForm actionButton "left" 5
+        -attachForm actionButton "right" 5
+        -attachForm actionButton "bottom" 10
+        
+        -attachControl buttonSep "top" 1 actionButton
+        -attachForm buttonSep "left" 0
+        -attachForm buttonSep "right" 0
+        mainForm;
+    
+    popupMenu -p mainForm AddToShelf_menu;
+        menuItem -l "添加到工具架" -c ("SoftSelectToCluster_AddToShelf");
+
+    showWindow softSelectClusterWindow;
+
+    inViewMessage
+        -a .9
+        -smg ("<font color=\"limegreen\">软选择转簇工具 ")
+        -pos "topCenter"
+        -bkc 0x00001100
+        -fade
+        -fadeInTime 100 -fadeStayTime 2200
+        -fadeOutTime 600;
+
+python("import sys; win_name = 'softSelectClusterWindow'; win_icon = ':cluster.png'; \n" + 
+"from maya import OpenMayaUI as omui; qw = omui.MQtUtil.findWindow(win_name);\n" + "if qw:\n" + "\ttry:\n" + 
+"\t\tfrom shiboken6 import wrapInstance; from PySide6.QtGui import QIcon; from PySide6.QtWidgets import QWidget;\n" + 
+"\t\twidget = wrapInstance(int(qw), QWidget); icon = QIcon(win_icon); widget.setWindowIcon(icon);\n" + 
+"\texcept ImportError:\n" + "\t\ttry:\n" + 
+"\t\t\tfrom shiboken2 import wrapInstance; from PySide2.QtGui import QIcon; from PySide2.QtWidgets import QWidget;\n" + 
+"\t\t\twidget = wrapInstance(int(qw), QWidget); icon = QIcon(win_icon); widget.setWindowIcon(icon);\n" + 
+"\t\texcept ImportError:\n" + "\t\t\tpass\n" + "");
+
+}
+
+createSoftSelectToClusterUI;
+
+global proc SoftSelectToCluster_asInstallScriptLocator (){}
+
+global proc string SoftSelectToCluster_asInstallScriptLocation ()
+{
+    string $Script_whatIs=`whatIs SoftSelectToCluster_asInstallScriptLocator`;
+    string $Script_fullPath=`substring $Script_whatIs 25 999`;
+
+    if ($Script_fullPath == "teractively.")
+        {
+            Running_Error;
+        }
+
+    string $Script_buffer[];
+    string $Script_slash="/";
+    if (`gmatch $Script_whatIs "*\\\\*"`)//sourced from ScriptEditor
+        $Script_slash="\\";
+    int $Script_numTok=`tokenize $Script_fullPath $Script_slash $Script_buffer`;
+    int $Script_numLetters=size($Script_fullPath);
+    int $Script_numLettersLastFolder=size($Script_buffer[$Script_numTok-1]);
+    string $script_Location=`substring $Script_fullPath 1 ($Script_numLetters-$Script_numLettersLastFolder)`;
+    return $script_Location;
+}
+
+global proc SoftSelectToCluster_AddToShelf()
+{
+    global string $gShelfTopLevel;
+    string $current_Shelf = `tabLayout -query -st $gShelfTopLevel`;
+    setParent $current_Shelf;
+    string $Installscript_path=`SoftSelectToCluster_asInstallScriptLocation`;
+    if (`gmatch $Installscript_path "*\*"`)
+        $Installscript_path=`substituteAllString $Installscript_path "\\" "/"`;
+
+    string $script_Name="软选择簇";
+    
+    string $shelfButtons[] = `shelfLayout -q -ca $current_Shelf`;
+    int $buttonExists = 0;
+    
+    for ($button in $shelfButtons) {
+        string $buttonType = `objectTypeUI $button`;
+        if ($buttonType == "shelfButton") {
+            string $buttonLabel = `shelfButton -q -label $button`;
+            if ($buttonLabel == $script_Name) {
+                $buttonExists = 1;
+                break;
+            }
+        }
+    }
+
+    if ($buttonExists) {
+        inViewMessage
+            -a .9
+            -smg ("<font color=\"orange\">软选择簇 <font color=\"yellow\">"+ "已在工具架中存在")
+            -pos "topCenter"
+            -bkc 0x00001100
+            -fade
+            -fadeInTime 100 -fadeStayTime 1200
+            -fadeOutTime 600;
+        return;
+    }
+
+    string $source_File=$Installscript_path+$script_Name+".mel";
+    string $Script_Command=("//////// This script was created by Kreon ////////"+"\n\n"+
+            "$source_cmd=\"source \\"+"\""+$source_File+"\\"+"\""+";"+"\""+";"+"\n\n"+
+            "if (`file -q -ex \""+$source_File+"\"`)"+"\n"+
+            "{"+"\n"+"\teval $source_cmd;"+"\n"+"}else{\n"+
+            "\twarning -n (\"没有找到:软选择簇.mel,"+
+            "可能是脚本被改名称或文件路径被移动\");"+"\n"+"}"+"\n\n"+
+            "\t\t\t\t\t\t\t\t\t\t\t\t\t\t"+"/"+"/By Kreon");
+
+    if (!`file -q -ex $source_File`)
+             {
+        warning ("\n"+"添加到工具架失败, 没有找到: \""+$source_File+"\"");
+             } else {
+                shelfButton
+                -stp "mel"
+                -c $Script_Command
+                -ann $script_Name
+                -l $script_Name
+                -iol $script_Name
+                -i cluster.png
+                -olb 0.2 0.2 0.2 1;
+            }
+
+    inViewMessage
+        -a .9
+        -smg ("<font color=\"orange\">软选择簇 <font color=\"limegreen\">"+"已添加至工具架")
+        -pos "topCenter"
+        -bkc 0x00001100
+        -fade
+        -fadeInTime 100 -fadeStayTime 1200
+        -fadeOutTime 600;
+}

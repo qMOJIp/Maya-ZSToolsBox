@@ -1,0 +1,12 @@
+//基于权重约束
+global proc CustomPluginPanel ()
+{
+	if (`window -exists "CustomPluginPanelWindow"`)
+	{
+		deleteUI -window "CustomPluginPanelWindow";
+	}
+	window -title "基于权重约束" -h 50 -w 200 -rtf 1 -s 0 -tlb 0 CustomPluginPanelWindow;
+		columnLayout -columnAttach both 5 -adjustableColumn true ConstrainByJointscolumnLayout;
+	showWindow CustomPluginPanelWindow;
+}
+CustomPluginPanel();

@@ -1,0 +1,4 @@
+eval("source \"" + `asInstallScriptLocation` + "ZSToolsBoxMenu.mel" + "\"");
+//eval("source \"" + `asInstallScriptLocation` + "Scripts/quickopenprojectfileopen.mel" + "\"");
+//eval("source \"" + `asInstallScriptLocation` + "Scripts/CeresProjectLocate.mel" + "\"");
+//eval("source \"" + `asInstallScriptLocation` + "Scripts/RigUseToEngineUseExport.mel" + "\"");

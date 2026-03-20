@@ -1,8 +1,0 @@
-string $scriptsPath = `internalVar -userScriptDir`;
-$scriptsPath = dirname( $scriptsPath );
-string $filePath = $scriptsPath + "/modules/quixel.mod";
-$fileId=`fopen $filePath "r"`;
-string $TextLine = `fgetline $fileId`;
-fclose $fileId;
-string $ArrayTextLine[] = stringToStringArray( $TextLine, "scripts: " );
-python ("import sys\npath_ = '" + $ArrayTextLine[1]  + "'\nif path_ not in sys.path:\n    sys.path.append( path_ )\nfrom DHI.RigSetup import RigBuilder\nbuilder = RigBuilder()\nbuilder.build()");

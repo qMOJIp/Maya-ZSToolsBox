@@ -1,0 +1,415 @@
+global string $bb_autoSkirt_orCtrlArray[];
+global string $bb_autoSkirt_CtrlArray[];
+global float $bb_autoSkirt_Scale;
+
+global proc bb_autoSkirt()
+{
+    if (`window -q -exists bb_autoSkirtWindow`) deleteUI bb_autoSkirtWindow;
+    window -title "裙子自动碰撞工具" -rtf 1 -s 0 -tlb 0 bb_autoSkirtWindow;
+        columnLayout -adjustableColumn true -columnAttach "both" 3;
+            separator -height 10 -style "in";
+            textFieldGrp -columnWidth 1 90 -columnWidth 2 200 -label "名称：" -text  "Skirt" bb_autoSkirt_Name;
+            intSliderGrp -columnWidth 1 90 -columnWidth 2 40 -columnWidth 3 50 -label "碰撞骨骼数量："
+                         -field true -minValue 4 -maxValue 24 -fieldMinValue 4 -value 12 bb_autoSkirt_SkirtJointNum;
+            rowColumnLayout -numberOfColumns 2 -columnWidth 1 130 -columnWidth 2 162;
+                button -l "加载碰撞骨骼>>>" -c bb_autoSkirt_LegJointLoad;
+                textField bb_autoSkirt_LegJointTF;
+            setParent ..;
+            separator -height 10 -style "in";
+            button -l "生成基础曲线" -c bb_autoSkirt_CreateCrv;
+            separator -height 10 -style "in";
+            button -l "生成被碰撞骨骼" -bgc 0.5 0.5 0.5 -c bb_autoSkirt_CreateJoint;
+            separator -height 10 -style "in";
+            button -l "整理" -h 40 -bgc 0.1 0.1 0.1 -c bb_autoSkirt_Apply;
+            separator -height 5 -style "none";
+    showWindow bb_autoSkirtWindow;
+}
+bb_autoSkirt;
+
+global proc bb_autoSkirt_Apply()
+{
+    string $Name = `textFieldGrp -q -text bb_autoSkirt_Name`;
+    int $SkirtNum = `intSliderGrp -q -value bb_autoSkirt_SkirtJointNum`;
+    string $LegString = `textField -q -tx bb_autoSkirt_LegJointTF`;
+    string $LegArray[] = stringToStringArray($LegString, ",");
+    string $RootCrv = ($Name + "_RootCrv");
+    string $EndCrv = ($Name + "_EndCrv");
+    string $RootShape[] = `listRelatives -shapes $RootCrv`;
+    string $EndShape[] = `listRelatives -shapes $EndCrv`;    
+    
+    if(!`objExists ($Name + "_NoTransforms")`) createNode "transform" -n ($Name + "_NoTransforms");
+    if(!`objExists ($Name + "_ParentRootGrp")`) createNode "transform" -n ($Name + "_ParentRootGrp");
+    if(!`objExists ($Name + "_CrvLocGrp")`){
+        createNode "transform" -n ($Name + "_CrvLocGrp");
+        parent ($Name + "_CrvLocGrp") ($Name + "_NoTransforms");
+        setAttr ($Name + "_CrvLocGrp.v") 0;
+    } 
+    if(!`objExists ($Name + "_LocGrp")`){
+        createNode "transform" -n ($Name + "_LocGrp");
+        parent ($Name + "_LocGrp") ($Name + "_ParentRootGrp");
+    }
+    if(`objExists ($Name + "_JointGrp")`) parent ($Name + "_JointGrp") ($Name + "_ParentRootGrp");
+    if(`objExists $RootCrv`){
+        parent $RootCrv ($Name + "_ParentRootGrp");
+        setAttr ($RootCrv + ".v") 0;
+    } 
+    if(`objExists $EndCrv`){
+        parent $EndCrv ($Name + "_ParentRootGrp");
+        setAttr ($EndCrv + ".v") 0;
+    } 
+    for($i=0;$i<size($LegArray);$i++){
+        //创建裙子Crv_Loc
+        string $Crv_Loc = $LegArray[$i] + "_CrvLoc";
+        spaceLocator -p 0 0 0 -n $Crv_Loc;
+        parent $Crv_Loc ($Name + "_CrvLocGrp");
+        float $parameter = 0;
+        addAttr -ln "parameter" -at double  -min 0 -max 1 -dv $parameter $Crv_Loc;
+        setAttr -e -keyable true ($Crv_Loc + ".parameter");
+        string $infoNode = `pointOnCurve -ch on $EndCrv`;
+        string $pointOnCurve = ($Name + "_" + $LegArray[$i] + "_pointOnCurve");
+        rename $infoNode $pointOnCurve;
+        setAttr ($pointOnCurve + ".turnOnPercentage") 1;
+        connectAttr -f ($Crv_Loc + ".parameter") ($pointOnCurve + ".parameter"); 
+        connectAttr -f ($pointOnCurve + ".position") ($Crv_Loc + ".translate");
+        
+        //创建Hand_Loc
+        string $Hand_Loc = $LegArray[$i] + "_HandLoc";
+        spaceLocator -p 0 0 0 -n $Hand_Loc;
+        parent $Hand_Loc ($Name + "_LocGrp");
+        string $LegChildren[] = `listRelatives -children $LegArray[$i]`;
+        float $LegLoc1[] = `xform -q -ws -t $LegChildren[0]`;
+        setAttr ($Hand_Loc + ".t") $LegLoc1[0] $LegLoc1[1] $LegLoc1[2];
+        string $Pole_Loc[] = `duplicate -rr -n ($LegArray[$i] + "_PoleLoc") $Hand_Loc`;
+        setAttr ($Pole_Loc[0] + ".v") 0;
+        addAttr -ln "speed"  -at double  -min 1 -dv 1 -keyable true $Hand_Loc;
+        addAttr -ln "DrvAngle"  -at double  -min 0 -dv 0 -keyable true $Hand_Loc;
+        addAttr -ln "range"  -at double  -min 0 -max 1 -dv 0.2 -keyable true $Hand_Loc;
+        
+        //最短数值连接
+        string $NPC = $Name + "_" + $LegArray[$i] + "_NPC";
+        createNode "nearestPointOnCurve" -n $NPC;
+        string $Crv_LocShape[] = `listRelatives -shapes $Crv_Loc`;
+        string $Hand_LocShape[] = `listRelatives -shapes $Hand_Loc`;
+        
+        connectAttr -f ($Hand_LocShape[0] + ".worldPosition[0]") ($NPC + ".inPosition");
+        connectAttr -f ($EndShape[0] + ".worldSpace[0]") ($NPC + ".inputCurve");
+        connectAttr -f ($NPC + ".parameter") ($Crv_Loc + ".parameter");
+        
+        if(!`objExists ($Name + "_DisGrp")`){
+            createNode "transform" -n ($Name + "_DisGrp");
+            parent ($Name + "_DisGrp") ($Name + "_NoTransforms");
+            setAttr ($Name + "_DisGrp.v") 0;
+        }
+        if(!`objExists ($Name + "_DisLocGrp")`){
+            createNode "transform" -n ($Name + "_DisLocGrp");
+            parent ($Name + "_DisLocGrp") ($Name + "_ParentRootGrp");
+            setAttr ($Name + "_DisLocGrp.v") 0;
+        } 
+        string $MD3Array[];
+        for($j=1;$j<=$SkirtNum;$j++){
+            string $skirtJoint = $Name + "_Root" + $j;
+            float $DisLoc0[] = `xform -q -ws -t $skirtJoint`;
+            string $skirtLoc = $skirtJoint + "_Loc";
+            if(!`objExists $skirtLoc`){
+                spaceLocator -p 0 0 0 -n $skirtLoc;
+                parent $skirtLoc ($Name + "_DisLocGrp");
+                setAttr ($skirtLoc + ".t") $DisLoc0[0] $DisLoc0[1] $DisLoc0[2];
+            }
+            
+            //创建Dis
+            string $DisName = $Name + $LegArray[$i] + "_Dis" + $j;
+            float $DisLoc1[] = `xform -q -ws -t $Crv_Loc`;
+            string $disShapeDef = `distanceDimension -sp $DisLoc0[0] $DisLoc0[1] $DisLoc0[2]
+                                                     -ep $DisLoc1[0] $DisLoc1[1] $DisLoc1[2]`;
+            //改Dis名称
+            string $Dis[] = `listRelatives -parent $disShapeDef`;
+            rename $Dis[0] $DisName;
+            parent $DisName ($Name + "_DisGrp");
+            string $disShape[] = `listRelatives -s $DisName`;
+            //乘除节点
+            string $MD1 = `shadingNode -asUtility multiplyDivide -n ($Name + "_" + $LegArray[$i] + "_" + $j + "_MD1")`;
+            setAttr ($MD1 + ".operation") 2;
+            setAttr ($MD1 + ".input1") 1 1 1;
+            connectAttr -f ($disShape[0] + ".distance") ($MD1 + ".input2X");
+            string $MD2 = `shadingNode -asUtility multiplyDivide -n ($Name + "_" + $LegArray[$i] + "_" + $j + "_MD2")`;
+            setAttr ($MD2 + ".operation") 2;
+            connectAttr -f ($MD1 + ".outputX") ($MD2 + ".input1X");
+ 
+            //MD2除数获取
+            string $NPC_temp = $Name + $j + "_TemporaryNPC";
+            string $Loc_temp = $Name + $j + "_TemporaryLoc";
+            createNode "nearestPointOnCurve" -n $NPC_temp;
+            spaceLocator -p 0 0 0 -n $Loc_temp;
+            string $Loc_tempShape[] = `listRelatives -s $Loc_temp`;
+            
+            addAttr -ln "parameter" -keyable true -at double  -min 0 -max 1 -dv 0 $Loc_temp;
+            string $infoNode_temp = `pointOnCurve -ch on $EndCrv`;
+            setAttr ($infoNode_temp + ".turnOnPercentage") 1;
+            connectAttr -f ($Loc_temp + ".parameter") ($infoNode_temp + ".parameter"); 
+            connectAttr -f ($infoNode_temp + ".position") ($Loc_temp + ".translate");
+
+            setAttr ($NPC_temp + ".inPosition") $DisLoc0[0] $DisLoc0[1] $DisLoc0[2];
+            connectAttr -f ($EndShape[0] + ".worldSpace[0]") ($NPC_temp + ".inputCurve");
+            connectAttr -f ($NPC_temp + ".parameter") ($Loc_temp + ".parameter");
+            
+            float $Loc_temp_t[] = `getAttr ($Loc_temp + ".t")`;
+            string $disShape_temp = `distanceDimension -sp $DisLoc0[0] $DisLoc0[1] $DisLoc0[2]
+                                                       -ep $Loc_temp_t[0] $Loc_temp_t[1] $Loc_temp_t[2]`;
+            float $MD2_inputX = `getAttr ($disShape_temp + ".distance")`;
+            setAttr ($MD2 + ".input2X") (1/$MD2_inputX);
+            string $dis_temp[] = `listRelatives -p $disShape_temp`;
+            
+            delete $NPC_temp $Loc_temp $infoNode_temp $dis_temp;
+            
+            //remapValue
+            string $remapValue = `shadingNode -asUtility remapValue -n ($Name + "_" + $LegArray[$i] + "_" + $j + "_remapValue")`;
+            connectAttr -f ($MD2 + ".outputX") ($remapValue + ".inputValue");
+            string $MD3 = `shadingNode -asUtility multiplyDivide -n ($Name + "_" + $LegArray[$i] + "_" + $j + "_MD3")`;
+            $MD3Array[$j-1] = $MD3;
+            connectAttr -f ($remapValue + ".outValue") ($MD3 + ".input1X"); 
+            
+            //多腿clamp连接
+            string $outputClamp = `shadingNode -asUtility clamp -n ($Name + "_" + $LegArray[$i] + "_" + $j + "_Clamp")`;
+            setAttr ($outputClamp + ".maxR") 180;
+            connectAttr -f ($MD3 + ".outputX") ($outputClamp + ".inputR"); 
+            if($i > 0){
+                string $oldClamp = $Name + "_" + $LegArray[$i-1] + "_" + $j + "_Clamp";
+                connectAttr -f ($oldClamp + ".outputR") ($outputClamp + ".minR"); 
+            }
+            connectAttr -f ($outputClamp + ".outputR") ($Name + "_JointRo" + $j + ".rz"); 
+            //connectAttr -f ($MD3 + ".outputX") ($Name + "_Root" + $j + ".rz"); 
+            string $reverse = `shadingNode -asUtility reverse -n ($Name + "_" + $LegArray[$i] + "_" + $j + "_reverse")`;
+            connectAttr -f ($Hand_Loc + ".range") ($reverse + ".inputX"); 
+            connectAttr -f ($reverse + ".outputX") ($remapValue + ".inputMin"); 
+        }
+        //腿骨设置
+        parent ($LegArray[$i] + "_Collider1") ($Name + "_ParentRootGrp");
+        string $aimJoint1[] = `duplicate -rr -po -n ($LegArray[$i] + "_Collider1Aim") ($LegArray[$i] + "_Collider1")`;
+        string $aimJoint2[] = `duplicate -rr -po -n ($LegArray[$i] + "_Collider2Aim") ($LegArray[$i] + "_Collider2")`;
+        parent $aimJoint2[0] $aimJoint1[0];
+        setAttr ($aimJoint1[0] + ".v") 0;
+        
+        string $IKHand[] = `ikHandle -sj$aimJoint1[0] -ee $aimJoint2[0] -n ($Name + "_" + $LegArray[$i] + "_AimIKHand")`;
+        parent $IKHand[0] $Crv_Loc;
+        setAttr ($IKHand[0] + ".t") 0 0 0;
+        string $pvc[] = `poleVectorConstraint -weight 1 $Pole_Loc $IKHand[0]`;
+        
+        string $Collider1Joint = $LegArray[$i] + "_Collider1";
+        parent $Collider1Joint $aimJoint1[0];
+        float $orient[] = `getAttr ($Collider1Joint + ".jointOrient")`;
+        setAttr ($Collider1Joint + ".jointOrient") 0 0 0;
+        string $OutputRo;
+        float $maxV = max(abs($orient[1]),abs($orient[2]));
+        if($maxV == abs($orient[1])){
+            $OutputRo = ".ry";
+            setAttr ($Collider1Joint + ".ry") $orient[1];
+        } 
+        else if($maxV == abs($orient[2])){
+            $OutputRo = ".rz";
+            setAttr ($Collider1Joint + ".rz") $orient[2];
+        } 
+        aimConstraint -mo -weight 1 -aimVector 1 0 0 -upVector 0 1 0 -worldUpType "objectrotation" 
+                      -worldUpVector 0 1 0 -worldUpObject $aimJoint1[0] $Hand_Loc $Collider1Joint;
+        //clamp,半径，倍率
+        string $MD_sp = `shadingNode -asUtility multiplyDivide -n ($LegArray[$i] + "_SpeedMD")`;
+        string $MA_ra = `shadingNode -asUtility plusMinusAverage -n ($LegArray[$i] + "_DrvAngleMA")`;
+        string $clamp = `shadingNode -asUtility clamp -n ($LegArray[$i] + "_clamp")`;
+
+        connectAttr -f ($Collider1Joint + $OutputRo) ($MA_ra + ".input1D[0]"); 
+        connectAttr -f ($Hand_Loc + ".DrvAngle") ($MA_ra + ".input1D[1]"); 
+        connectAttr -f ($MA_ra + ".output1D") ($MD_sp + ".input1X"); 
+        connectAttr -f ($Hand_Loc + ".speed") ($MD_sp + ".input2X"); 
+        
+        connectAttr -f ($MD_sp + ".outputX") ($clamp + ".inputR"); 
+        setAttr ($clamp + ".maxR") 180;
+        
+        for($k=0;$k<size($MD3Array);$k++){
+            connectAttr -f ($clamp + ".outputR") ($MD3Array[$k] + ".input2X"); 
+        }
+        parentConstraint -mo -weight 1 $LegArray[$i] $Hand_Loc;
+    }
+    bb_autoSkirt_CreateCtrl;
+}
+
+global proc bb_autoSkirt_CreateJoint()
+{
+    global string $bb_autoSkirt_orCtrlArray[];
+    clear $bb_autoSkirt_orCtrlArray;
+    global float $bb_autoSkirt_Scale;
+    string $Name = `textFieldGrp -q -text bb_autoSkirt_Name`;
+    int $SkirtNum = `intSliderGrp -q -value bb_autoSkirt_SkirtJointNum`;
+    string $LegString = `textField -q -tx bb_autoSkirt_LegJointTF`;
+    string $LegArray[] = stringToStringArray($LegString, ",");
+    string $RootCrv = ($Name + "_RootCrv");
+    string $EndCrv = ($Name + "_EndCrv");
+    string $RootShape[] = `listRelatives -shapes $RootCrv`;
+    string $EndShape[] = `listRelatives -shapes $EndCrv`;
+    
+    string $infoNode_Root = `pointOnCurve -ch on $RootCrv`;
+    setAttr ($infoNode_Root + ".turnOnPercentage") 1;
+    string $infoNode_End = `pointOnCurve -ch on $EndCrv`;
+    setAttr ($infoNode_End + ".turnOnPercentage") 1;
+    //裙子骨骼
+    if(!`objExists ($Name + "_JointGrp")`) createNode "transform" -n ($Name + "_JointGrp"); 
+    for($i=0;$i<$SkirtNum;$i++){
+        float $parameter = 0;
+        $parameter = float($i)/($SkirtNum);
+        setAttr ($infoNode_Root + ".parameter") $parameter;
+        setAttr ($infoNode_End + ".parameter") $parameter;
+        float $position_Root[] = getAttr ($infoNode_Root + ".position");
+        float $position_End[] = getAttr ($infoNode_End + ".position");
+        
+        joint -n ($Name + "_Root" + ($i+1)) -position $position_Root[0] $position_Root[1] $position_Root[2];
+        joint -n ($Name + "_End" + ($i+1)) -position $position_End[0] $position_End[1] $position_End[2];
+        joint -e -zso -oj xyz -sao yup ($Name + "_Root" + ($i+1)) ($Name + "_End" + ($i+1));
+        setAttr ($Name + "_End" + ($i+1) + ".jointOrient") 0 0 0;
+        //方向指示曲线
+        string $crv_Z = `curve -d 1 -p 0 0 0 -p 0 0 6 -p -1 0 4 -p 1 0 4 -p 0 0 6 -p 0 1 4 -p 0 -1 4 -p 0 0 6 
+                        -k 0 -k 1 -k 2 -k 3 -k 4 -k 5 -k 6 -k 7 -n ($Name + "_JointRo" + ($i+1))`;
+        $orCtrlArray[$i] = $Name + "_JointRo" + ($i+1);
+        float $boxMin[] = `getAttr ($EndCrv + ".boundingBoxMin")`;
+        float $boxMax[] = `getAttr ($EndCrv + ".boundingBoxMax")`;
+        float $newScale =  eval ("mag <<"+($boxMin[0]-$boxMax[0])+","+($boxMin[1]-$boxMax[1])+","+($boxMin[2]-$boxMax[2])+">>;");
+        $bb_autoSkirt_Scale = $newScale * 0.06;
+        $newScale = $newScale * 0.01;
+        $bb_autoSkirt_orCtrlArray[$i] = $crv_Z;
+        
+        setAttr ($crv_Z + ".s") $newScale $newScale $newScale;
+        string $crv_ZShape[] = `listRelatives -s $crv_Z`;
+        setAttr ($crv_ZShape[0] + ".overrideEnabled") 1;
+        setAttr ($crv_ZShape[0] + ".overrideColor") 6;
+
+        string $crv_X[] = `duplicate -rr -n ($Name + "_JointRoX" + ($i+1)) $crv_Z`;
+        setAttr ($crv_X[0] + ".ry") 90;
+        string $crv_XShape[] = `listRelatives -s -f $crv_X[0]`;
+        setAttr ($crv_XShape[0] + ".overrideColor") 13;
+        
+        string $crv_Y[] = `duplicate -rr -n ($Name + "_JointRoY" + ($i+1)) $crv_Z`;
+        setAttr ($crv_Y[0] + ".rx") -90;
+        string $crv_YShape[] = `listRelatives -s -f $crv_Y[0]`;
+        setAttr ($crv_YShape[0] + ".overrideColor") 14;
+        select -r $crv_Z $crv_X $crv_Y;
+        FreezeTransformations;
+        
+        parent -s -add $crv_XShape[0] $crv_YShape[0] $crv_Z;
+        string $env = `createNode "transform" -n ($Name + "_JointEnv" + ($i+1))`;
+        parent $crv_Z $env;
+        parent $env ($Name + "_JointGrp");
+        delete $crv_X $crv_Y;
+        float $joint_r[] = `xform -q -ws -ro ($Name + "_Root" + ($i+1))`;
+        setAttr ($env + ".t") $position_Root[0] $position_Root[1] $position_Root[2];
+        setAttr ($env + ".r") $joint_r[0] $joint_r[1] $joint_r[2];
+        parent ($Name + "_Root" + ($i+1)) $crv_Z;
+        
+        select -r ($Name + "_JointGrp");
+    }
+    delete $infoNode_Root $infoNode_End;
+    select -cl;
+    //腿骨骼
+    for($i=0;$i<size($LegArray);$i++){
+        float $LegLoc0[] = `xform -q -ws -t $LegArray[$i]`;
+        string $LegChildren[] = `listRelatives -children $LegArray[$i]`;
+        float $LegLoc1[] = `xform -q -ws -t $LegChildren[0]`;
+        joint -n ($LegArray[$i] + "_Collider1") -position $LegLoc0[0] $LegLoc0[1] $LegLoc0[2];
+        joint -n ($LegArray[$i] + "_Collider2") -position $LegLoc1[0] $LegLoc1[1] $LegLoc1[2];
+        joint -e -zso -oj xyz -sao yup ($LegArray[$i] + "_Collider1");
+        select -cl;
+    }
+}
+
+global proc bb_autoSkirt_CreateCtrl()
+{
+    global string $bb_autoSkirt_orCtrlArray[];
+    global string $bb_autoSkirt_CtrlArray[];
+    global float $bb_autoSkirt_Scale;
+    clear $bb_autoSkirt_CtrlArray;
+    string $Name = `textFieldGrp -q -text bb_autoSkirt_Name`;
+    int $SkirtNum = `intSliderGrp -q -value bb_autoSkirt_SkirtJointNum`;
+    string $LegString = `textField -q -tx bb_autoSkirt_LegJointTF`;
+    string $LegArray[] = stringToStringArray($LegString, ",");
+    string $RootCrv = ($Name + "_RootCrv");
+    string $EndCrv = ($Name + "_EndCrv");
+    string $RootShape[] = `listRelatives -shapes $RootCrv`;
+    string $EndShape[] = `listRelatives -shapes $EndCrv`;
+    
+    print $bb_autoSkirt_Scale;
+    for($i=0;$i<size($bb_autoSkirt_orCtrlArray);$i++){
+        string $shape[] = `listRelatives -s $bb_autoSkirt_orCtrlArray[$i]`;
+        delete $shape;
+        string $joint[] = `listRelatives -c $bb_autoSkirt_orCtrlArray[$i]`;
+        string $newCtrl = substituteAllString($bb_autoSkirt_orCtrlArray[$i], "JointRo", "Ctrl");
+        circle -c 0 0 0 -nr 1 0 0 -sw 360 -r $bb_autoSkirt_Scale -d 3 -ut 0 -tol 6.10236e-10 -s 8 -ch 0 -n $newCtrl;
+        parent $newCtrl $bb_autoSkirt_orCtrlArray[$i];
+        setAttr ($newCtrl + ".t") 0 0 0;
+        setAttr ($newCtrl + ".r") 0 0 0;
+        parent $joint[0] $newCtrl;
+    }
+}
+
+
+
+global proc bb_autoSkirt_CreateCrv()
+{
+    string $Name = `textFieldGrp -q -text bb_autoSkirt_Name`;
+    int $SkirtNum = `intSliderGrp -q -value bb_autoSkirt_SkirtJointNum`;
+    string $LegString = `textField -q -tx bb_autoSkirt_LegJointTF`;
+    string $LegArray[] = stringToStringArray($LegString, ",");
+    float $LegHight0[] = `xform -q -ws -t $LegArray[0]`;
+    float $radius = 1;
+    if($LegHight0[0] > 0.00001 || $LegHight0[0] < -0.00001){
+        $radius = abs($LegHight0[0])*1.2;
+    }
+    float $endRad = abs($radius)*1.5;
+    string $LegChildren[] = `listRelatives -children $LegArray[0]`;
+    float $LegHight1[] = `xform -q -ws -t $LegChildren[0]`;
+    circle -c 0 $LegHight0[1] $LegHight0[2] -nr 0 1 0 -sw 360 -r $radius -d 3 -ut 0 -tol 6.10236e-10 -s $SkirtNum -ch 0 -n ($Name + "_RootCrv");
+    circle -c 0 $LegHight1[1] $LegHight1[2] -nr 0 1 0 -sw 360 -r $endRad -d 3 -ut 0 -tol 6.10236e-10 -s $SkirtNum -ch 0 -n ($Name + "_EndCrv");
+    rebuildCurve -rpo 1 -rt 0 -end 1 -kr 0 -kcp 0 -kep 1 -kt 0 -s $SkirtNum -d 3 -tol 6.10236e-10 ($Name + "_RootCrv");
+    rebuildCurve -rpo 1 -rt 0 -end 1 -kr 0 -kcp 0 -kep 1 -kt 0 -s $SkirtNum -d 3 -tol 6.10236e-10 ($Name + "_EndCrv");
+    select -r ($Name + "_RootCrv");
+    select -tgl ($Name + "_EndCrv");
+    CenterPivot;
+}
+
+global proc bb_autoSkirt_LegJointLoad()
+{
+    textField -e -tx "" bb_autoSkirt_LegJointTF;
+    string $sel[] = `ls -sl -type "joint"`;
+    string $text = stringArrayToString($sel, ",");
+    textField -e -tx $text bb_autoSkirt_LegJointTF;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,21 @@
+{
+    "maya_info": {
+        "version": "2023",
+        "location": "",
+        "app_dir": "C:/Users/ck/Documents/maya/"
+    },
+    "toolbox": {
+        "tools_dir": "E:\\maya\\A\\scripts box\\tool",
+        "last_active_group": "default",
+        "window_size": [
+            761,
+            561
+        ],
+        "custom_scripts_paths": []
+    },
+    "ui": {
+        "theme": "dark",
+        "font_size": 9,
+        "button_size": "medium"
+    }
+}

@@ -1,0 +1,58 @@
+//加载公共函数
+eval ("source \"" + `asInstallScriptLocation` + "Scripts/ALLPublicScripts.mel\"");
+
+global proc AdvancedCombine( int $NewModule, int $KeepSkin )
+{
+	string $selections[] = `ls -sl`;
+	if (size($selections) < 2)
+	{
+		warning ("请至少选择两个模型！！！");
+	}else
+	{
+		if ($NewModule == 1)
+		{
+			if ($KeepSkin == 1)
+			{
+				undoInfo -openChunk;
+				for ($selection in $selections)
+				{
+				    select -r $selection;
+					duplicate -rr -name ("New_" + $selection);
+					//复制权重
+					simpleCopySkin ( $selection, ("New_" + $selection), 1 );
+				}
+				$selections = stringArrayAddPrefix( $selections, "New_" );
+				polyUniteSkinned -ch 0 -mergeUVSets 1 -centerPivot $selections;
+				string $Oldname[] = `ls -l -sl `;
+				rename $Oldname[0] "New_Combine";
+				delete $selections;
+				undoInfo -closeChunk;
+			}else
+			{
+				undoInfo -openChunk;
+				for ($selection in $selections)
+				{
+				    select -r $selection;
+					duplicate -rr -name ("New_" + $selection);
+				}
+				$selections = stringArrayAddPrefix( $selections, "New_" );
+				polyUnite -ch 0 -mergeUVSets 1 -centerPivot -name "New_Combine" $selections;
+				delete $selections;
+				undoInfo -closeChunk;
+			}
+		}else
+		{
+			if ($KeepSkin == 1)
+			{
+				undoInfo -openChunk;
+				polyUniteSkinned -ch 0 -mergeUVSets 1 -centerPivot $selections;
+				string $Oldname[] = `ls -l -sl `;
+				rename $Oldname[0] "New_Combine";
+				undoInfo -closeChunk;
+			}else
+			{
+				polyUnite -ch 0 -mergeUVSets 1 -centerPivot -name "New_Combine" $selections;
+			}
+		}
+	}
+}

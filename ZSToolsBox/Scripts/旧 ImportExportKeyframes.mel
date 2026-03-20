@@ -1,0 +1,305 @@
+// 窗口
+global proc ImportExportKeyframesWindow()
+{
+	// 如果窗口已经存在，则删除它
+	if (`window -exists "ImportExportKeyframesWindow"`) {
+		deleteUI "ImportExportKeyframesWindow";
+	}
+	window -title "关键帧动画导入导出" -h 80 -w 150 -s 0 -tlb 1 ImportExportKeyframesWindow;
+	columnLayout -columnAttach both 5 -adjustableColumn true ImportExportKeyframescolumnLayout;
+		separator -h 5 -style "none";
+		button -w 90 -c "CheckSelectObjects(1);ImportExportKeyPath(0)" -label "导出全部";
+		button -w 90 -c "CheckSelectObjects(0);ImportExportKeyPath(0)" -label "导出选中";
+		button -w 90 -c "ImportExportKeyPath(1)" -label "导入动画";
+		separator -h 5 -style "none";
+	showWindow "ImportExportKeyframesWindow";
+}
+
+
+// 查找含有关键帧的对象关键帧
+global proc string[] GetAllKeyedObjects ()
+{
+	// 获取所有变换节点
+	string $AllTransforms[] = `ls -type "transform"`;
+	
+	// 筛选出含有关键帧的对象
+	string $KeyedObjects[] = {};
+	for ($obj in $AllTransforms)
+	{
+		if (`keyframe -query -keyframeCount $obj` > 0)
+		{
+			$KeyedObjects[size($KeyedObjects)] = $obj;
+		}
+	}
+	return $KeyedObjects;
+}
+
+// 检查选中对象
+global proc CheckSelectObjects ( int $AllKey )
+{
+	if ($AllKey == 1)
+	{
+		string $AllKeyedObjects[] = GetAllKeyedObjects();
+		select -r $AllKeyedObjects;
+		print ("导出对象为：\n");
+		print $AllKeyedObjects;
+	}else
+	{
+		string $SelectKeyedObjects[] = `ls -sl`;
+		if (size($SelectKeyedObjects) == 0)
+		{
+			warning ("请选中需要导出关键帧的对象！！！\n");
+		}else
+		{
+			print ("导出对象为：\n");
+			print $SelectKeyedObjects;
+		}
+	}
+}
+
+// 路径选择
+global proc ImportExportKeyPath ( int $ExportORImport )
+{
+	if ($ExportORImport == 0)
+	{
+		string $exportfilePath[] = `fileDialog2 -caption "覆盖警告！" -fileFilter "JSON Files (*.json)"`;
+		if (size($exportfilePath) == 0 || $exportfilePath[0] == "")
+		{
+			warning ("已取消导出！\n");
+		}else
+		{
+			ExportSelectedKeyframes ( $exportfilePath[0] );
+		}
+	}else
+	{
+		string $importfilePath = `fileDialog -title "导入关键帧数据" -directoryMask "/usr/u//*.json"`;
+		if ($importfilePath == "")
+		{
+			warning ("已取消导入！\n");
+		}else
+		{
+			ImportSelectedKeyframes ( $importfilePath );
+		}
+	}
+}
+// 关键帧导入
+global string $NowObjectName;
+global string $NowAttributeName;
+global proc ImportSelectedKeyframes ( string $JSONPath )
+{
+	global string $NowObjectName;
+	global string $NowAttributeName;
+	if (`filetest -e $JSONPath`)
+	{
+		string $EachJSONline[] = freadAllLines($JSONPath);
+		for ($JSONline in $EachJSONline)
+		{
+			if (`gmatch $JSONline "\"*\": ?"`)
+			{
+				string $AnimationName[];
+				tokenize $JSONline "\"" $AnimationName;
+				print ("动画数据：" + $AnimationName[0] + "\n");
+			}
+			if (`gmatch $JSONline "*name*"`)
+			{
+				string $ObjectName[];
+				tokenize $JSONline "\"" $ObjectName;
+				$NowObjectName = $ObjectName[3];
+				if (`objExists $NowObjectName`)
+				{
+					select -r $NowObjectName;
+				}
+				print ("\t对象：" + $ObjectName[3] + "\n");
+			}
+			if (`gmatch $JSONline "*keyframeData*"`)
+			{
+				continue;
+				//print ("加载关键帧信息！\n");
+			}
+			if (`gmatch $JSONline "*attribute*"`)
+			{
+				string $AttributeName[];
+				tokenize $JSONline "\"" $AttributeName;
+				$NowAttributeName = $AttributeName[3];
+				print ("\t\t属性：" + $AttributeName[3] + "\n");
+			}
+			if (`gmatch $JSONline "*curveType*"`)
+			{
+				string $CurveType[];
+				tokenize $JSONline "\"" $CurveType;
+				print ("\t\t类型：" + $CurveType[3] + "\n");
+			}
+			if (`gmatch $JSONline "*keyframeCount*"`)
+			{
+				string $Count[];
+				tokenize $JSONline ": ," $Count;
+				print ("\t\t帧数：" + $Count[1] + "\n");
+			}
+			if (`gmatch $JSONline "*keyframes*"`)
+			{
+				continue;
+				//print ("开始设置关键帧：\n");
+			}
+			if (`gmatch $JSONline "*message*"`)
+			{
+				print ("\t\t该对象没有关键帧\n");
+			}
+			if (`gmatch $JSONline "*index*"`)
+			{
+				if (`objExists $NowObjectName`)
+				{
+					string $IndexDate[];
+					tokenize $JSONline "\": ,}" $IndexDate;
+					print ("\t\t\t帧序：" + $IndexDate[2] + "\t");
+					print ("时间：" + $IndexDate[4] + "\t");
+					print ("数值：" + $IndexDate[6] + "\n");
+					int $KeyTime = $IndexDate[4];
+					int $KeyValue = $IndexDate[6];
+					setKeyframe -t $KeyTime -at $NowAttributeName -v $KeyValue $NowObjectName;
+				}else{
+					print ("\t\t\t缺失对象无效数据\n");
+				}
+			}
+		}
+	}else
+	{
+		error ("文件不存在！！！");
+	}
+}
+
+// 关键帧导出
+global proc string ExportSelectedKeyframes ( string $JSONPath )
+{
+	// 获取当前选中的对象
+	string $selected[] = `ls -sl`;
+	
+	if (size($selected) == 0)
+	{
+		warning "请先选择至少一个对象！";
+		return "";
+	}
+	
+	// 收集关键帧数据
+	string $keyframeData = "{\n";
+	$keyframeData += "\"" + basename( $JSONPath, ".json" ) + "\": [\n";
+	int $objectCount = 0;
+	
+	for ($obj in $selected)
+	{
+		$objectCount++;
+		
+		// 检查对象是否存在且有动画
+		if (!`objExists $obj`)
+		{
+			print ("警告: 对象不存在 - " + $obj + "\n");
+			continue;
+		}
+		
+		$keyframeData += "\t{\n";
+		$keyframeData += "\t\t\"name\": \"" + $obj + "\",\n";
+		
+		// 使用listAnimatable获取可动画属性
+		string $animatableAttrs[] = `listAnimatable $obj`;
+		string $animCurves[];
+		
+		if (size($animatableAttrs) > 0)
+		{
+			// 获取这些属性对应的动画曲线
+			for ($attr in $animatableAttrs)
+			{
+				string $conn[] = `listConnections -type "animCurve" $attr`;
+				if (size($conn) > 0)
+					$animCurves = stringArrayAppend($animCurves, $conn[0]);
+			}
+		}
+		
+		if (size($animCurves) > 0)
+		{
+			$keyframeData += "\t\t\"keyframeData\": [\n";
+			
+			int $curveCount = 0;
+			for ($curve in $animCurves)
+			{
+				$curveCount++;
+				
+				// 检查曲线是否存在
+				if (!`objExists $curve`)
+				{
+					continue;
+				}
+				
+				// 获取属性长名
+				string $attribute = `substitute ($obj + "_") $curve ""`;
+				$keyframeData += "\t\t\t{\n";
+				$keyframeData += "\t\t\t\t\"attribute\": \"" + $attribute + "\",\n";
+				
+				// 获取节点类型
+				string $curveType = `nodeType $curve`;
+				$keyframeData += "\t\t\t\t\"curveType\": \"" + $curveType + "\",\n";
+				
+				// 获取关键帧时间和值 - 分别查询时间和值
+				float $times[] = `keyframe -query -timeChange $curve`;
+				float $values[] = `keyframe -query -valueChange $curve`;
+				int $numKeys = size($times);
+				
+				$keyframeData += "\t\t\t\t\"keyframeCount\": " + $numKeys + ",\n";
+				$keyframeData += "\t\t\t\t\"keyframes\": [\n";
+				
+				for ($i = 0; $i < $numKeys; $i++)
+				{
+					float $time = $times[$i];
+					float $value = $values[$i];
+					
+					$keyframeData += "\t\t\t\t\t{\"index\": " + $i + ", \"time\": " + $time + ", \"value\": " + $value + "}";
+					
+					if ($i < $numKeys - 1)
+						$keyframeData += ",";
+					$keyframeData += "\n";
+				}
+				
+				$keyframeData += "\t\t\t\t]\n";
+				$keyframeData += "\t\t\t}";
+				
+				if ($curveCount < size($animCurves))
+				{
+					$keyframeData += ",";
+				}
+				$keyframeData += "\n";
+			}
+			
+			$keyframeData += "\t\t]\n";
+		}
+		else
+		{
+			$keyframeData += "\t\t\"animationCurves\": [],\n";
+			$keyframeData += "\t\t\"message\": \"该对象没有关键帧\"\n";
+		}
+		
+		$keyframeData += "\t}";
+		if ($objectCount < size($selected))
+		{
+			$keyframeData += ",";
+		}
+		$keyframeData += "\n";
+	}
+	
+	$keyframeData += "\t]\n";
+	$keyframeData += "}\n";
+	
+	// 写入文件
+	$fileId = `fopen $JSONPath "w"`;
+	if ($fileId != 0)
+	{
+		fprint $fileId $keyframeData;
+		fclose $fileId;
+		print ("关键帧数据已导出到: " + $JSONPath + "\n");
+		return $JSONPath;
+	}
+	else
+	{
+		error ("无法创建文件: " + $JSONPath);
+		return "";
+	}
+}
+
+ImportExportKeyframesWindow();

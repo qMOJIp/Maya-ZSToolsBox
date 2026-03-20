@@ -1,0 +1,21 @@
+global proc AdvancedSkeletonInstallLoadVersion ( int $Type )
+{
+	global string $AdvancedSkeletonVersion;
+	if ($Type == 0)
+	{
+		eval ("source \"" + `asInstallScriptLocation` + "ExternalPlugins/AdvancedSkeleton/" + $AdvancedSkeletonVersion + "/AdvancedSkeleton.mel\"");
+		AdvancedSkeleton;
+	}
+	if ($Type == 1)
+	{
+		eval ("source \"" + `asInstallScriptLocation` + "ExternalPlugins/AdvancedSkeleton/" + $AdvancedSkeletonVersion + "/AdvancedSkeletonFiles/Selector/biped.mel\"");
+	}
+	if ($Type == 2)
+	{
+		eval ("source \"" + `asInstallScriptLocation` + "ExternalPlugins/AdvancedSkeleton/" + $AdvancedSkeletonVersion + "/AdvancedSkeletonFiles/Selector/face.mel\"");
+	}
+	if ($Type == 3)
+	{
+		eval ("source \"" + `asInstallScriptLocation` + "ExternalPlugins/AdvancedSkeleton/" + $AdvancedSkeletonVersion + "/AdvancedSkeletonFiles/picker/picker.mel\"");
+	}
+}

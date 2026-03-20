@@ -1,0 +1,64 @@
+global proc CeresDNAImport()
+{
+	// 如果窗口已经存在，则删除它
+	if (`window -exists "DNAImportWindow"`) {
+		deleteUI "DNAImportWindow";
+	}
+	window -title "Ceres DNA 导入" -w 200 -h 30 -s 0 -tlb 1 DNAImportWindow;
+
+	string $scriptsPath = `internalVar -userScriptDir`;
+	string $filePath = $scriptsPath + "ZSToolsBox/PublicFiles/Projets.txt";
+	$fileId=`fopen $filePath "r"`;
+	string $TextLine = `fgetline $fileId`;
+	fclose $fileId;
+	string $ArrayTextLine[] = stringToStringArray( $TextLine, ";" );
+	columnLayout -columnAttach both 5 -adjustableColumn true CDIcolumnLayout;
+	separator -h 5 -style "none";
+	rowLayout -adj 2 -nc 3 -columnWidth3 50 125 25 -p CDIcolumnLayout;
+		string $ProjetContent[] = stringToStringArray( $ArrayTextLine[0], "=" );
+		textField -w 50 -tx $ProjetContent[1] DNAImportCeresProject;
+			popupMenu -button 3;
+			for ($i=0; $i<size($ArrayTextLine); $i++)
+			{
+				$ProjetContent = stringToStringArray( $ArrayTextLine[$i], "=" );
+				menuItem -label $ProjetContent[0] -c ("textField -e -tx \"" + $ProjetContent[1] + "\" DNAImportCeresProject;");
+			}
+		textField -w 125 -ec "CDIImport" -tx "" DNAImportCeresPath;
+		button -h 20 -c "CDIImport" -ann "右键选择项目载入" -label "载入";
+			popupMenu -button 3;
+			for ($i=0; $i<size($ArrayTextLine); $i++)
+			{
+				$ProjetContent = stringToStringArray( $ArrayTextLine[$i], "=" );
+				menuItem -label $ProjetContent[0] -c ("textField -e -tx \"" + $ProjetContent[1] + "\" DNAImportCeresProject;CDIImport;");
+			}
+	showWindow "DNAImportWindow";
+}
+
+global proc CDIImport()
+{
+	string $CeresPath = `textField -q -tx DNAImportCeresPath`;
+	if (`textField -q -tx DNAImportCeresPath` != "")
+	{
+		if (`gmatch $CeresPath ("*:*")`)
+		{
+			$CeresPath = fromNativePath($CeresPath);
+		}else
+		{
+			$CeresPath = fromNativePath($CeresPath);
+			$CeresPath = `textField -q -tx DNAImportCeresProject` + $CeresPath;
+		}
+		string $scriptsPath = `internalVar -userScriptDir`;
+		$scriptsPath = dirname( $scriptsPath );
+		string $filePath = $scriptsPath + "/modules/quixel.mod";
+		$fileId=`fopen $filePath "r"`;
+		string $TextLine = `fgetline $fileId`;
+		fclose $fileId;
+		string $ArrayTextLine[] = stringToStringArray( $TextLine, "scripts: " );
+		python ("import sys\npath_ = '" + $ArrayTextLine[1]  + "'\nif path_ not in sys.path:\n    sys.path.append( path_ )\nfrom DHI.RigSetup import RigBuilder\nbuilder = RigBuilder()\nbuilder.build( '" + $CeresPath + "' )");
+	}else
+	{
+		error ("请输入路径！！！");
+	}
+}
+
+CeresDNAImport();

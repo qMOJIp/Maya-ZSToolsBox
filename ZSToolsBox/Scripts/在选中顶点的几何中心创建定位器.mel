@@ -1,0 +1,42 @@
+// 在选中顶点的几何中心创建定位器
+proc createLocatorAtVertexCenter() {
+    // 获取选中的顶点
+    string $selectedVertices[] = `filterExpand -selectionMask 31 -expand true`; // 31 = 顶点
+    
+    if (size($selectedVertices) == 0) {
+        warning("请先选择一些顶点");
+        return;
+    }
+    
+    // 计算顶点中心位置
+    float $centerX = 0.0;
+    float $centerY = 0.0;
+    float $centerZ = 0.0;
+    
+    for ($vertex in $selectedVertices) {
+        // 获取顶点世界位置
+        float $pos[] = `pointPosition -world $vertex`;
+        $centerX += $pos[0];
+        $centerY += $pos[1];
+        $centerZ += $pos[2];
+    }
+    
+    // 计算平均值
+    int $vertexCount = size($selectedVertices);
+    $centerX /= $vertexCount;
+    $centerY /= $vertexCount;
+    $centerZ /= $vertexCount;
+    
+    // 创建定位器
+    string $locator = `spaceLocator -position $centerX $centerY $centerZ`;
+    
+    
+    print("已在 " + $vertexCount + " 个顶点的中心创建定位器: " + $locator + "\n");
+    print("中心位置: (" + $centerX + ", " + $centerY + ", " + $centerZ + ")\n");
+    
+    // 选择新创建的定位器
+    select -replace $locator;
+}
+
+// 执行
+createLocatorAtVertexCenter();
